@@ -1,0 +1,2952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nirbhay Video Matrix — YouTube Video Analyzer</title>
+<meta name="description" content="Extract video metadata, identifiers, statistics, publication timing and thumbnails from any YouTube video using the YouTube Data API v3.">
+<!-- Google Search Console site verification — paste the exact meta tag you get from
+     Search Console here, e.g. <meta name="google-site-verification" content="..."> -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080a0e;
+  --bg-elevated:#0d1117;
+  --glass:rgba(255,255,255,0.05);
+  --glass-strong:rgba(255,255,255,0.085);
+  --border:rgba(255,255,255,0.10);
+  --border-strong:rgba(255,255,255,0.19);
+  --text:#eef1f6;
+  --text-dim:#a8b0c2;
+  --text-faint:#6b7280;
+  --accent:#4f8cff;
+  --accent-dim:#345ea8;
+  --teal:#22d3a5;
+  --danger:#f1636b;
+  --amber:#e8b94b;
+  --code-bg:#0a0e14;
+  --code-text:#a9d1ff;
+  --card-shadow:0 20px 60px -20px rgba(0,0,0,0.55);
+  --glass-blur:26px;
+  --bg-glow-1:rgba(79,140,255,0.12);
+  --bg-glow-2:rgba(34,211,165,0.07);
+  --header-bg:rgba(8,10,14,0.72);
+  --radius:14px;
+  --radius-sm:9px;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+html[data-theme="night"]{
+  --bg:#000103;
+  --bg-elevated:#050709;
+  --glass:rgba(255,255,255,0.035);
+  --glass-strong:rgba(255,255,255,0.065);
+  --border:rgba(255,255,255,0.08);
+  --border-strong:rgba(255,255,255,0.15);
+  --text:#e7ebf2;
+  --text-dim:#93a0b8;
+  --text-faint:#5c6577;
+  --code-bg:#000000;
+  --card-shadow:0 24px 70px -18px rgba(0,0,0,0.8);
+  --glass-blur:32px;
+  --bg-glow-1:rgba(79,140,255,0.08);
+  --bg-glow-2:rgba(34,211,165,0.05);
+  --header-bg:rgba(0,1,3,0.78);
+}
+html[data-theme="day"]{
+  --bg:#eef1f6;
+  --bg-elevated:#ffffff;
+  --glass:rgba(255,255,255,0.65);
+  --glass-strong:rgba(255,255,255,0.85);
+  --border:rgba(16,23,42,0.09);
+  --border-strong:rgba(16,23,42,0.16);
+  --text:#0f172a;
+  --text-dim:#4b5566;
+  --text-faint:#7c8496;
+  --accent:#2f6fed;
+  --accent-dim:#e4ecff;
+  --teal:#0ea882;
+  --code-bg:#0f172a;
+  --code-text:#bcd4ff;
+  --card-shadow:0 20px 45px -20px rgba(16,23,42,0.18);
+  --glass-blur:20px;
+  --bg-glow-1:rgba(47,111,237,0.08);
+  --bg-glow-2:rgba(14,168,130,0.06);
+  --header-bg:rgba(255,255,255,0.72);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+
+/* ---------- Auth + Broadcast (Firebase) ---------- */
+.auth-area{display:flex; align-items:center; gap:8px;}
+.auth-btn-google{
+  display:flex; align-items:center; gap:8px;
+  background:var(--glass); border:1px solid var(--border); color:var(--text);
+  padding:7px 12px 7px 8px; border-radius:20px; cursor:pointer; font-size:12.5px; font-weight:600;
+  transition:background .15s ease, border-color .15s ease;
+}
+.auth-btn-google:hover{background:var(--glass-strong); border-color:var(--border-strong);}
+.auth-btn-google svg{flex-shrink:0;}
+.user-chip{display:flex; align-items:center; gap:8px; position:relative;}
+.user-chip img{width:26px; height:26px; border-radius:50%; border:1px solid var(--border-strong); display:block;}
+.user-chip-btn{
+  display:flex; align-items:center; gap:8px; background:var(--glass); border:1px solid var(--border);
+  padding:4px 10px 4px 4px; border-radius:20px; cursor:pointer; color:var(--text); font-size:12.5px; font-weight:600;
+}
+.user-chip-name{max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.user-chip-menu{
+  position:absolute; top:calc(100% + 8px); right:0; min-width:180px; z-index:60;
+  background:var(--glass-strong); backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid var(--border-strong); border-radius:12px; padding:8px; box-shadow:var(--card-shadow);
+  display:none; flex-direction:column; gap:2px;
+}
+.user-chip-menu.open{display:flex;}
+.user-chip-menu .uc-email{font-size:11.5px; color:var(--text-faint); padding:6px 8px 8px; border-bottom:1px solid var(--border); margin-bottom:4px; word-break:break-all;}
+.user-chip-menu button{
+  background:none; border:none; color:var(--text-dim); text-align:left; font-size:13px; font-weight:500;
+  padding:8px; border-radius:8px; cursor:pointer;
+}
+.user-chip-menu button:hover{background:var(--glass); color:var(--text);}
+
+.broadcast-banner{
+  display:none; align-items:flex-start; gap:13px;
+  max-width:640px; margin:16px auto 0; padding:15px 16px 15px 18px;
+  background:var(--glass-strong);
+  backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+  border:1px solid var(--border-strong); border-radius:14px;
+  box-shadow:0 20px 50px -16px rgba(0,0,0,0.5); position:relative;
+  overflow:hidden;
+}
+.broadcast-banner::before{
+  content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
+  background:var(--accent);
+}
+.broadcast-banner.show{display:flex; animation:bcSlide .38s cubic-bezier(.34,1.3,.5,1);}
+@keyframes bcSlide{from{opacity:0; transform:translateY(-14px) scale(.98);} to{opacity:1; transform:translateY(0) scale(1);}}
+.broadcast-banner .bc-icon{
+  width:30px; height:30px; border-radius:9px; flex-shrink:0; margin-top:1px;
+  background:rgba(79,140,255,0.14); color:var(--accent);
+  display:flex; align-items:center; justify-content:center;
+}
+.broadcast-banner .bc-dot{display:none;}
+.broadcast-banner .bc-body{flex:1; min-width:0;}
+.broadcast-banner .bc-label{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); margin-bottom:3px;}
+.broadcast-banner .bc-text{font-size:13.5px; color:var(--text); line-height:1.55; white-space:pre-wrap;}
+.broadcast-banner .bc-close{
+  background:none; border:none; color:var(--text-faint); cursor:pointer; padding:4px; border-radius:6px; flex-shrink:0;
+}
+.broadcast-banner .bc-close:hover{color:var(--text); background:var(--glass);}
+.broadcast-banner[data-type="info"]::before{background:var(--accent);}
+.broadcast-banner[data-type="success"]::before{background:var(--teal);}
+.broadcast-banner[data-type="warning"]::before{background:var(--amber);}
+.broadcast-banner[data-type="urgent"]::before{background:var(--danger);}
+.broadcast-banner[data-type="info"] .bc-icon{background:rgba(79,140,255,0.14); color:var(--accent);}
+.broadcast-banner[data-type="success"] .bc-icon{background:rgba(34,211,165,0.14); color:var(--teal);}
+.broadcast-banner[data-type="warning"] .bc-icon{background:rgba(232,185,75,0.14); color:var(--amber);}
+.broadcast-banner[data-type="urgent"] .bc-icon{background:rgba(241,99,107,0.14); color:var(--danger);}
+
+.admin-box{background:var(--glass); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-top:16px;}
+.admin-box textarea{
+  width:100%; min-height:88px; resize:vertical; background:var(--bg-elevated); color:var(--text);
+  border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-family:var(--sans); font-size:13.5px;
+}
+.admin-box .admin-row{display:flex; gap:10px; margin-top:10px; align-items:center; flex-wrap:wrap;}
+.admin-list{margin-top:16px; display:flex; flex-direction:column; gap:8px;}
+.admin-list-item{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px;
+}
+.admin-list-item .al-text{white-space:pre-wrap; word-break:break-word; color:var(--text-dim);}
+.admin-list-item .al-meta{font-size:11px; color:var(--text-faint); margin-top:4px;}
+.admin-list-item button{background:none; border:1px solid var(--border); color:var(--danger); border-radius:8px; padding:5px 9px; cursor:pointer; font-size:11.5px; flex-shrink:0;}
+.auth-gate-note{font-size:13px; color:var(--text-faint); padding:14px; background:var(--glass); border:1px solid var(--border); border-radius:var(--radius-sm);}
+
+.type-pill{
+  background:var(--bg-elevated); border:1px solid var(--border); color:var(--text-dim);
+  padding:7px 14px; border-radius:20px; cursor:pointer; font-size:12.5px; font-weight:600;
+}
+.type-pill.active[data-type="info"]{border-color:var(--accent); color:var(--accent); background:rgba(79,140,255,0.1);}
+.type-pill.active[data-type="success"]{border-color:var(--teal); color:var(--teal); background:rgba(34,211,165,0.1);}
+.type-pill.active[data-type="warning"]{border-color:var(--amber); color:var(--amber); background:rgba(232,185,75,0.1);}
+.type-pill.active[data-type="urgent"]{border-color:var(--danger); color:var(--danger); background:rgba(241,99,107,0.1);}
+
+.broadcast-banner[data-type="info"] .bc-dot, .admin-list-item[data-type="info"] .al-dot{background:var(--accent); box-shadow:0 0 0 4px rgba(79,140,255,0.15);}
+.broadcast-banner[data-type="success"] .bc-dot, .admin-list-item[data-type="success"] .al-dot{background:var(--teal); box-shadow:0 0 0 4px rgba(34,211,165,0.15);}
+.broadcast-banner[data-type="warning"] .bc-dot, .admin-list-item[data-type="warning"] .al-dot{background:var(--amber); box-shadow:0 0 0 4px rgba(232,185,75,0.15);}
+.broadcast-banner[data-type="urgent"] .bc-dot, .admin-list-item[data-type="urgent"] .al-dot{background:var(--danger); box-shadow:0 0 0 4px rgba(241,99,107,0.15);}
+.broadcast-banner[data-type="info"] .bc-label{color:var(--accent);}
+.broadcast-banner[data-type="success"] .bc-label{color:var(--teal);}
+.broadcast-banner[data-type="warning"] .bc-label{color:var(--amber);}
+.broadcast-banner[data-type="urgent"] .bc-label{color:var(--danger);}
+
+.admin-list-item{position:relative; padding-left:20px;}
+.admin-list-item .al-dot{position:absolute; left:10px; top:15px; width:7px; height:7px; border-radius:50%; background:var(--text-faint);}
+.admin-list-item .al-title{font-weight:700; font-size:13.5px; margin-bottom:2px;}
+.admin-list-item button.read-aloud-btn{
+  background:none; border:1px solid var(--border); color:var(--text-dim); border-radius:8px;
+  padding:6px 8px; cursor:pointer; display:flex; align-items:center; flex-shrink:0;
+}
+.admin-list-item button.read-aloud-btn:hover{color:var(--accent); border-color:rgba(79,140,255,0.4);}
+
+.notif-badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:17px; height:17px; padding:0 4px; border-radius:9px;
+  background:var(--danger); color:#fff; font-size:10px; font-weight:700;
+  margin-left:auto;
+}
+
+.plans-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+@media (max-width:820px){.plans-grid{grid-template-columns:1fr;}}
+.plan-card{
+  position:relative; background:var(--glass); border:1px solid var(--border); border-radius:var(--radius);
+  backdrop-filter:blur(var(--glass-blur)) saturate(150%); box-shadow:var(--card-shadow);
+  padding:26px 22px; text-align:center;
+}
+.plan-card.featured{border-color:rgba(232,165,48,0.5); background:linear-gradient(180deg, rgba(232,165,48,0.08), var(--glass));}
+.plan-badge{
+  position:absolute; top:-11px; left:50%; transform:translateX(-50%);
+  background:linear-gradient(135deg,#f5c451,#e8a530); color:#04101f; font-size:10.5px; font-weight:700;
+  padding:3px 12px; border-radius:20px; text-transform:uppercase; letter-spacing:.04em;
+}
+.plan-name{font-size:14px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:10px;}
+.plan-price{font-family:var(--mono); font-size:30px; font-weight:600; margin-bottom:12px;}
+.plan-price .plan-period{font-size:13px; color:var(--text-faint); font-family:var(--sans); margin-left:3px;}
+.plan-desc{color:var(--text-dim); font-size:13.5px; line-height:1.6;}
+
+.plan-input{
+  width:100%; background:var(--bg-elevated); color:var(--text); border:1px solid var(--border);
+  border-radius:8px; padding:9px 11px; font-family:var(--sans); font-size:13.5px; margin-bottom:8px;
+}
+.pricing-plan-editor:last-of-type .plan-input:last-child{margin-bottom:0;}
+
+.premium-badge{
+  display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.04em; color:#04101f;
+  background:linear-gradient(135deg, #f5c451, #e8a530); padding:2px 7px; border-radius:20px;
+  margin-left:6px; vertical-align:middle;
+}
+.banned-badge{
+  display:inline-flex; align-items:center; font-size:10px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.04em; color:var(--danger);
+  background:rgba(241,99,107,0.12); border:1px solid rgba(241,99,107,0.35);
+  padding:2px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;
+}
+
+.user-row{
+  display:flex; align-items:center; gap:12px; background:var(--bg-elevated);
+  border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px;
+}
+.user-row img{width:34px; height:34px; border-radius:50%; border:1px solid var(--border-strong); flex-shrink:0;}
+.user-row .ur-meta{flex:1; min-width:0;}
+.user-row .ur-name{font-size:13.5px; font-weight:600; display:flex; align-items:center; flex-wrap:wrap;}
+.user-row .ur-email{font-size:11.5px; color:var(--text-faint); word-break:break-all;}
+.user-row .ur-actions{display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap;}
+.user-row .ur-actions button{
+  background:none; border:1px solid var(--border); color:var(--text-dim); border-radius:8px;
+  padding:6px 10px; cursor:pointer; font-size:11.5px; font-weight:600;
+}
+.user-row .ur-actions button.grant-premium{color:#e8a530; border-color:rgba(232,165,48,0.4);}
+.user-row .ur-actions button.ban-btn{color:var(--danger); border-color:rgba(241,99,107,0.4);}
+.user-row .ur-actions button:disabled{opacity:.4; cursor:not-allowed;}
+
+.auth-gate-overlay{
+  position:fixed; inset:0; z-index:200;
+  background:rgba(2,3,5,0.82); backdrop-filter:blur(14px) saturate(140%);
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.auth-gate-card{
+  max-width:380px; width:100%; text-align:center;
+  background:var(--glass-strong); border:1px solid var(--border-strong);
+  border-radius:var(--radius); padding:36px 28px; box-shadow:var(--card-shadow);
+}
+.auth-gate-card h2{font-size:19px; font-weight:700; margin:16px 0 8px; letter-spacing:-0.01em;}
+.auth-gate-card p{font-size:13.5px; color:var(--text-dim); line-height:1.6; margin:0 0 22px;}
+.auth-gate-card .auth-btn-google{
+  width:100%; justify-content:center; padding:12px 18px; font-size:14px;
+  background:linear-gradient(135deg, var(--accent), var(--teal)); color:#04101f; border:none;
+}
+.auth-gate-card .auth-btn-google:hover{filter:brightness(1.08);}
+body.gate-locked{overflow:hidden;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, var(--bg-glow-1), transparent 60%),
+    radial-gradient(1000px 500px at 100% 0%, var(--bg-glow-2), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  line-height:1.5;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  transition:background-color .25s ease, color .25s ease;
+}
+a{color:inherit;}
+button{font-family:inherit;}
+::selection{background:rgba(79,140,255,0.3);}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px;}
+
+.container{max-width:1120px;margin:0 auto;padding:0 24px;}
+
+/* ---------- Header ---------- */
+header.site-header{
+  position:sticky; top:0; z-index:50;
+  backdrop-filter:blur(var(--glass-blur)) saturate(150%);
+  background:var(--header-bg);
+  border-bottom:1px solid var(--border);
+}
+.theme-toggle{
+  display:flex; align-items:center; gap:6px;
+  background:var(--glass); border:1px solid var(--border); color:var(--text-dim);
+  padding:8px 12px; border-radius:20px; cursor:pointer; font-size:12.5px; font-weight:500;
+  transition:background .15s ease, color .15s ease, border-color .15s ease;
+}
+.theme-toggle:hover{color:var(--text); border-color:var(--border-strong);}
+.header-inner{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 24px; max-width:1120px; margin:0 auto;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-0.01em;}
+.brand svg{flex-shrink:0;}
+
+.menu-toggle{
+  display:flex; align-items:center; justify-content:center;
+  background:none;border:1px solid var(--border);color:var(--text);
+  width:38px; height:38px; border-radius:9px;cursor:pointer;
+  transition:background .15s ease, border-color .15s ease;
+}
+.menu-toggle:hover{background:var(--glass); border-color:var(--border-strong);}
+
+.nav-overlay{
+  position:fixed; inset:0; z-index:70;
+  background:rgba(0,0,0,0.55); backdrop-filter:blur(6px);
+  opacity:0; pointer-events:none; transition:opacity .22s ease;
+}
+.nav-overlay.show{opacity:1; pointer-events:auto;}
+
+nav.main-nav{
+  position:fixed; top:0; right:0; bottom:0; z-index:80;
+  width:320px; max-width:86vw;
+  background:var(--glass-strong);
+  backdrop-filter:blur(30px) saturate(160%);
+  border-left:1px solid var(--border-strong);
+  box-shadow:-20px 0 60px -20px rgba(0,0,0,0.6);
+  display:flex; flex-direction:column; gap:3px;
+  padding:18px 14px 24px;
+  transform:translateX(100%); transition:transform .28s cubic-bezier(.4,0,.2,1);
+  overflow-y:auto;
+}
+nav.main-nav.open{transform:translateX(0);}
+
+.nav-panel-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 8px 14px; margin-bottom:6px; border-bottom:1px solid var(--border);
+}
+.nav-panel-title{font-size:12.5px; font-weight:600; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em;}
+.nav-close{
+  background:none; border:1px solid var(--border); color:var(--text-dim);
+  width:30px; height:30px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:background .15s ease, color .15s ease;
+}
+.nav-close:hover{background:var(--glass); color:var(--text);}
+
+nav.main-nav .nav-divider{height:1px; background:var(--border); margin:8px 6px;}
+
+nav.main-nav button{
+  display:flex; align-items:center; gap:12px;
+  background:none;border:none;color:var(--text-dim); text-align:left;
+  font-size:14.5px; font-weight:500; padding:12px 12px; border-radius:10px;
+  cursor:pointer; transition:background .15s ease, color .15s ease;
+}
+nav.main-nav button svg{width:18px; height:18px; flex-shrink:0; opacity:.85;}
+nav.main-nav button:hover{color:var(--text); background:var(--glass);}
+nav.main-nav button.active{color:var(--text); background:var(--glass-strong); border:1px solid var(--border);}
+
+body.nav-open{overflow:hidden;}
+
+@media (max-width:480px){
+  nav.main-nav{width:100%; max-width:100%;}
+}
+
+/* ---------- Page sections ---------- */
+.page{display:none;}
+.page.active{display:block;}
+
+/* ---------- Hero ---------- */
+.hero{padding:76px 0 40px;}
+.hero h1{
+  font-size:clamp(32px, 5vw, 52px);
+  font-weight:800; letter-spacing:-0.02em; line-height:1.08;
+  max-width:780px; margin:0 0 18px;
+}
+.hero p.lead{
+  font-size:17px; color:var(--text-dim); max-width:600px; margin:0 0 36px;
+}
+
+.analyzer-bar{
+  display:flex; gap:10px; flex-wrap:wrap;
+  background:var(--glass); border:1px solid var(--border);
+  border-radius:var(--radius); padding:10px; backdrop-filter:blur(var(--glass-blur)) saturate(150%); box-shadow:var(--card-shadow);
+}
+.analyzer-bar input[type=text]{
+  flex:1 1 320px; min-width:0;
+  background:var(--bg-elevated); border:1px solid var(--border);
+  color:var(--text); font-family:var(--mono); font-size:14px;
+  padding:14px 16px; border-radius:var(--radius-sm);
+}
+.analyzer-bar input[type=text]::placeholder{color:var(--text-faint); font-family:var(--sans);}
+.btn{
+  border:none; cursor:pointer; font-weight:600; font-size:14px;
+  padding:14px 22px; border-radius:var(--radius-sm);
+  transition:transform .12s ease, box-shadow .12s ease, background .15s ease;
+  white-space:nowrap;
+}
+.btn:active{transform:scale(.98);}
+.btn-primary{background:linear-gradient(135deg, var(--accent), #6ea1ff); color:#04101f;}
+.btn-primary:hover{box-shadow:0 6px 24px rgba(79,140,255,0.35);}
+.btn-primary:disabled{opacity:.55; cursor:not-allowed; box-shadow:none;}
+.btn-ghost{background:var(--glass); color:var(--text); border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--glass-strong);}
+
+.validation-msg{
+  margin-top:12px; padding:12px 14px; border-radius:10px; font-size:14px;
+  border:1px solid transparent; display:none;
+}
+.validation-msg.show{display:block;}
+.validation-msg.error{background:rgba(241,99,107,0.08); border-color:rgba(241,99,107,0.35); color:#ffb0b4;}
+.validation-msg.info{background:rgba(79,140,255,0.08); border-color:rgba(79,140,255,0.3); color:#bcd4ff;}
+
+/* ---------- Loading ---------- */
+.loading-state{
+  display:none; align-items:center; gap:12px; padding:20px 4px; color:var(--text-dim); font-size:14px;
+}
+.loading-state.show{display:flex;}
+.spinner{
+  width:18px;height:18px;border-radius:50%;
+  border:2px solid var(--border-strong); border-top-color:var(--accent);
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ---------- Glass cards ---------- */
+.glass-card{
+  background:var(--glass); border:1px solid var(--border);
+  border-radius:var(--radius); backdrop-filter:blur(var(--glass-blur)) saturate(150%); box-shadow:var(--card-shadow);
+  padding:26px;
+}
+.section-title{
+  font-size:13px; font-weight:600; color:var(--text-dim); margin:0 0 16px;
+  display:flex; align-items:center; gap:8px;
+}
+.section-title svg{opacity:.8;}
+
+#results{display:none; margin-top:48px;}
+#results.show{display:block;}
+
+.results-grid{
+  display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start;
+}
+@media (max-width:900px){.results-grid{grid-template-columns:1fr;}}
+
+.stack{display:flex; flex-direction:column; gap:20px;}
+
+/* main video card */
+.video-thumb-wrap{
+  position:relative; border-radius:var(--radius-sm); overflow:hidden;
+  border:1px solid var(--border); margin-bottom:20px; background:#000;
+  aspect-ratio:16/9;
+}
+.video-thumb-wrap img{width:100%; height:100%; object-fit:cover; display:block;}
+.duration-badge{
+  position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.75);
+  color:#fff; font-family:var(--mono); font-size:12px; padding:3px 7px; border-radius:6px;
+}
+
+.video-title{font-size:21px; font-weight:700; letter-spacing:-0.01em; margin:0 0 6px; line-height:1.3;}
+.channel-line{color:var(--text-dim); font-size:14px; margin-bottom:18px; display:flex; align-items:center; gap:8px;}
+.channel-line img{width:22px;height:22px;border-radius:50%; border:1px solid var(--border);}
+
+.field-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:11px 0; border-bottom:1px solid var(--border);
+}
+.field-row:last-child{border-bottom:none;}
+.field-label{font-size:12.5px; color:var(--text-faint); flex-shrink:0;}
+.field-value{
+  font-family:var(--mono); font-size:13px; color:var(--text);
+  overflow-wrap:anywhere; text-align:right; margin-left:12px;
+}
+
+.copy-btn{
+  display:inline-flex; align-items:center; gap:5px;
+  background:var(--glass-strong); border:1px solid var(--border);
+  color:var(--text-dim); font-size:12px; font-weight:500;
+  padding:6px 11px; border-radius:7px; cursor:pointer; flex-shrink:0;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.copy-btn:hover{color:var(--text); border-color:var(--border-strong);}
+.copy-btn.copied{color:var(--teal); border-color:rgba(34,211,165,0.4); background:rgba(34,211,165,0.08);}
+.copy-btn svg{width:13px;height:13px;}
+
+.inline-copy-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+
+.scroll-box{
+  max-height:180px; overflow-y:auto; font-size:14px; color:var(--text-dim);
+  white-space:pre-wrap; line-height:1.6; padding-right:6px;
+}
+.scroll-box.expanded{max-height:600px;}
+.scroll-box::-webkit-scrollbar{width:6px;}
+.scroll-box::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:3px;}
+
+.expand-link{
+  background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;
+  cursor:pointer; padding:8px 0 0; display:inline-block;
+}
+
+.tags-wrap{display:flex; flex-wrap:wrap; gap:8px;}
+.tag-chip{
+  background:var(--glass-strong); border:1px solid var(--border); color:var(--text-dim);
+  font-size:12.5px; padding:5px 11px; border-radius:20px;
+}
+.empty-note{color:var(--text-faint); font-size:13.5px; font-style:normal;}
+
+/* stat grid */
+.stat-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px;}
+.stat-box{
+  background:var(--bg-elevated); border:1px solid var(--border); border-radius:11px;
+  padding:16px;
+}
+.stat-box .num{font-family:var(--mono); font-size:22px; font-weight:600; letter-spacing:-0.01em;}
+.stat-box .lbl{font-size:12px; color:var(--text-faint); margin-top:4px;}
+
+/* age counter */
+.age-hero{
+  font-size:15px; color:var(--text); margin-bottom:18px; line-height:1.6;
+}
+.age-hero strong{color:var(--accent); font-weight:600;}
+.age-breakdown{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+@media (max-width:480px){.age-breakdown{grid-template-columns:repeat(2,1fr);}}
+.age-unit{
+  background:var(--bg-elevated); border:1px solid var(--border); border-radius:10px;
+  text-align:center; padding:14px 6px;
+}
+.age-unit .val{font-family:var(--mono); font-size:20px; font-weight:600; color:var(--teal);}
+.age-unit .unit{font-size:11px; color:var(--text-faint); margin-top:3px;}
+
+/* thumbnails — no image previews; download-focused rows */
+.thumb-grid{display:flex; flex-direction:column; gap:10px;}
+.thumb-row{
+  display:flex; align-items:center; gap:14px;
+  background:var(--bg-elevated); border:1px solid var(--border); border-radius:11px;
+  padding:14px 16px; flex-wrap:wrap;
+}
+.thumb-row-icon{
+  width:38px; height:38px; flex-shrink:0; border-radius:9px;
+  background:var(--glass-strong); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center; color:var(--accent);
+}
+.thumb-row-meta{flex:1 1 140px; min-width:0;}
+.thumb-row-meta .res-name{font-size:13.5px; font-weight:600;}
+.thumb-row-meta .res-dim{font-family:var(--mono); font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+.thumb-actions{display:flex; gap:6px; flex-wrap:wrap;}
+.thumb-actions .copy-btn{padding:6px 11px; font-size:11.5px;}
+
+/* channel video list */
+.video-list{display:flex; flex-direction:column; gap:12px;}
+.video-list-item{
+  display:flex; gap:12px; background:var(--bg-elevated); border:1px solid var(--border);
+  border-radius:11px; padding:12px; align-items:flex-start;
+}
+.video-list-thumb{
+  width:120px; flex-shrink:0; border-radius:8px; overflow:hidden; aspect-ratio:16/9;
+  background:#000; border:1px solid var(--border);
+}
+.video-list-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+.video-list-meta{flex:1; min-width:0;}
+.video-list-meta .vtitle{
+  font-size:13.5px; font-weight:600; line-height:1.35; margin-bottom:4px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.video-list-meta .vdate{font-family:var(--mono); font-size:11.5px; color:var(--text-faint); margin-bottom:8px;}
+.video-list-actions{display:flex; gap:6px; flex-wrap:wrap;}
+.video-list-actions .copy-btn{padding:5px 10px; font-size:11.5px;}
+.video-list-actions .copy-btn.analyze-btn{color:var(--accent); border-color:rgba(79,140,255,0.4); background:rgba(79,140,255,0.08);}
+@media (max-width:480px){
+  .video-list-item{flex-direction:column;}
+  .video-list-thumb{width:100%;}
+}
+
+/* technical details */
+details.tech-details{border-top:1px solid var(--border); margin-top:8px; padding-top:16px;}
+details.tech-details summary{
+  cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dim);
+  list-style:none; display:flex; align-items:center; gap:8px;
+}
+details.tech-details summary::-webkit-details-marker{display:none;}
+.chev{transition:transform .15s ease;}
+details[open] .chev{transform:rotate(90deg);}
+.json-viewer{
+  margin-top:14px; background:var(--code-bg); border:1px solid var(--border);
+  border-radius:10px; padding:16px; font-family:var(--mono); font-size:12.5px;
+  color:var(--code-text); max-height:340px; overflow:auto; white-space:pre;
+}
+
+/* error card */
+.error-card{
+  background:rgba(241,99,107,0.06); border:1px solid rgba(241,99,107,0.3);
+  border-radius:var(--radius); padding:22px; display:none; margin-top:40px;
+}
+.error-card.show{display:block;}
+.error-card h3{margin:0 0 6px; color:#ffb0b4; font-size:16px;}
+.error-card p{margin:0; color:#e8b8ba; font-size:14px;}
+
+/* long-form pages */
+.doc-page{padding:64px 0 100px;}
+.doc-page h1{font-size:34px; font-weight:800; letter-spacing:-0.02em; margin-bottom:10px;}
+.doc-page .updated{color:var(--text-faint); font-size:13px; margin-bottom:40px;}
+.doc-page h2{font-size:19px; font-weight:700; margin:36px 0 12px;}
+.doc-page h3{font-size:15px; font-weight:600; margin:22px 0 8px; color:var(--text-dim);}
+.doc-page p, .doc-page li{color:var(--text-dim); font-size:14.5px; line-height:1.75;}
+.doc-page ul{padding-left:20px;}
+.doc-page code{font-family:var(--mono); background:var(--glass-strong); padding:2px 6px; border-radius:5px; font-size:13px;}
+.callout{
+  background:var(--glass); border:1px solid var(--border); border-left:3px solid var(--accent);
+  border-radius:0 10px 10px 0; padding:16px 18px; margin:20px 0; font-size:14px; color:var(--text-dim);
+}
+.doc-nav{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;}
+
+/* footer */
+footer.site-footer{border-top:1px solid var(--border); padding:48px 0; margin-top:80px;}
+.footer-grid{display:flex; justify-content:space-between; flex-wrap:wrap; gap:32px;}
+.footer-col h4{font-size:13px; margin:0 0 12px; color:var(--text-dim);}
+.footer-col a, .footer-col button{
+  display:block; background:none; border:none; text-align:left; cursor:pointer;
+  color:var(--text-faint); font-size:13.5px; padding:5px 0; text-decoration:none;
+}
+.footer-col a:hover, .footer-col button:hover{color:var(--text);}
+.footer-note{margin-top:32px; padding-top:24px; border-top:1px solid var(--border); font-size:12.5px; color:var(--text-faint);}
+
+.sr-only{position:absolute; width:1px;height:1px; overflow:hidden; clip:rect(0,0,0,0);}
+
+@media (max-width:600px){
+  .container{padding:0 16px;}
+  .glass-card{padding:18px;}
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .field-row{flex-direction:column; align-items:flex-start; gap:4px;}
+  .field-value{text-align:left; margin-left:0;}
+}
+</style>
+</head>
+<body class="gate-locked">
+
+<div class="auth-gate-overlay" id="authGate">
+  <div class="auth-gate-card">
+    <svg width="36" height="36" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="margin:0 auto;">
+      <rect x="0.5" y="0.5" width="29" height="29" rx="8.5" fill="var(--bg-elevated)" stroke="var(--border-strong)"/>
+      <line x1="9" y1="9" x2="15" y2="15" stroke="url(#gateLg1)" stroke-width="1.4"/>
+      <line x1="21" y1="9" x2="15" y2="15" stroke="url(#gateLg1)" stroke-width="1.4"/>
+      <line x1="9" y1="21" x2="15" y2="15" stroke="url(#gateLg1)" stroke-width="1.4"/>
+      <line x1="21" y1="21" x2="15" y2="15" stroke="url(#gateLg1)" stroke-width="1.4"/>
+      <circle cx="9" cy="9" r="2" fill="var(--accent)"/>
+      <circle cx="21" cy="9" r="2" fill="var(--teal)"/>
+      <circle cx="9" cy="21" r="2" fill="var(--teal)"/>
+      <circle cx="21" cy="21" r="2" fill="var(--accent)"/>
+      <circle cx="15" cy="15" r="2.6" fill="url(#gateLg1)"/>
+      <defs><linearGradient id="gateLg1" x1="9" y1="9" x2="21" y2="21"><stop stop-color="var(--accent)"/><stop offset="1" stop-color="var(--teal)"/></linearGradient></defs>
+    </svg>
+    <h2 id="authGateTitle">Sign in to continue</h2>
+    <p id="authGateText">Nirbhay Video Matrix requires a Google sign-in before you can use the analyzer or view its content.</p>
+    <button class="auth-btn-google" id="authGateSignInBtn" type="button">
+      <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.9C16.66 14.2 17.64 11.9 17.64 9.2z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 013.68 9c0-.59.1-1.16.27-1.7V4.97H.9A9 9 0 000 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 00.9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+      <span id="authGateSignInLabel">Sign in with Google</span>
+    </button>
+  </div>
+</div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="0.5" y="0.5" width="29" height="29" rx="8.5" fill="var(--bg-elevated)" stroke="var(--border-strong)"/>
+        <line x1="9" y1="9" x2="15" y2="15" stroke="url(#lg1)" stroke-width="1.4"/>
+        <line x1="21" y1="9" x2="15" y2="15" stroke="url(#lg1)" stroke-width="1.4"/>
+        <line x1="9" y1="21" x2="15" y2="15" stroke="url(#lg1)" stroke-width="1.4"/>
+        <line x1="21" y1="21" x2="15" y2="15" stroke="url(#lg1)" stroke-width="1.4"/>
+        <line x1="9" y1="9" x2="21" y2="9" stroke="var(--border-strong)" stroke-width="1"/>
+        <line x1="9" y1="21" x2="21" y2="21" stroke="var(--border-strong)" stroke-width="1"/>
+        <circle cx="9" cy="9" r="2" fill="var(--accent)"/>
+        <circle cx="21" cy="9" r="2" fill="var(--teal)"/>
+        <circle cx="9" cy="21" r="2" fill="var(--teal)"/>
+        <circle cx="21" cy="21" r="2" fill="var(--accent)"/>
+        <circle cx="15" cy="15" r="2.6" fill="url(#lg1)"/>
+        <defs><linearGradient id="lg1" x1="9" y1="9" x2="21" y2="21"><stop stop-color="var(--accent)"/><stop offset="1" stop-color="var(--teal)"/></linearGradient></defs>
+      </svg>
+      <span>Nirbhay Video Matrix</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Change color theme">
+        <svg id="themeIconDark" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.5 9.3A5.8 5.8 0 116.7 2.5a4.6 4.6 0 106.8 6.8z" fill="currentColor"/></svg>
+        <svg id="themeIconNight" width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:none;"><path d="M8 1.5L9.2 5.4L13 6.6L9.2 7.8L8 11.7L6.8 7.8L3 6.6L6.8 5.4L8 1.5Z" fill="currentColor"/><circle cx="12.5" cy="3" r="0.9" fill="currentColor"/></svg>
+        <svg id="themeIconDay" width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:none;"><circle cx="8" cy="8" r="3.4" fill="currentColor"/><path d="M8 1V2.6M8 13.4V15M1 8H2.6M13.4 8H15M3.1 3.1L4.2 4.2M11.8 11.8L12.9 12.9M12.9 3.1L11.8 4.2M4.2 11.8L3.1 12.9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <span id="themeLabel">Dark</span>
+      </button>
+      <div class="auth-area" id="authArea">
+        <button class="auth-btn-google" id="googleSignInBtn" type="button">
+          <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.9C16.66 14.2 17.64 11.9 17.64 9.2z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 013.68 9c0-.59.1-1.16.27-1.7V4.97H.9A9 9 0 000 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 00.9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+          <span>Sign in</span>
+        </button>
+        <div class="user-chip" id="userChip" style="display:none;">
+          <button class="user-chip-btn" id="userChipBtn" type="button">
+            <img id="userChipAvatar" src="" alt="">
+            <span class="user-chip-name" id="userChipName"></span>
+          </button>
+          <div class="user-chip-menu" id="userChipMenu">
+            <div class="uc-email" id="userChipEmail"></div>
+            <span class="premium-badge" id="userChipPremiumBadge" style="display:none; margin:0 8px 8px;">Premium</span>
+            <button type="button" id="signOutBtn">Sign out</button>
+          </div>
+        </div>
+      </div>
+      <button class="menu-toggle" id="menuToggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mainNav">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4.5H16M2 9H16M2 13.5H16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="broadcast-banner" id="broadcastBanner">
+  <span class="bc-dot"></span>
+  <div class="bc-icon" id="broadcastIcon">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.2" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.3V7.8M7.5 10.4H7.507" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+  </div>
+  <div class="bc-body">
+    <div class="bc-label" id="broadcastLabel">Live update</div>
+    <div class="bc-text" id="broadcastText"></div>
+  </div>
+  <button class="bc-close" id="broadcastReadAloudBtn" aria-label="Read this update aloud" style="border:none; background:none; color:var(--text-dim); cursor:pointer; padding:4px;">
+    <svg width="15" height="15" viewBox="0 0 14 14" fill="none"><path d="M1.5 5.2H3.6L6.6 2.6V11.4L3.6 8.8H1.5V5.2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9 4.3C9.9 5.1 9.9 8.9 9 9.7M10.7 2.7C12.4 4.4 12.4 9.6 10.7 11.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+  </button>
+  <button class="bc-close" id="broadcastClose" aria-label="Dismiss">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<div class="nav-overlay" id="navOverlay"></div>
+<nav class="main-nav" id="mainNav" aria-label="Main navigation">
+  <div class="nav-panel-head">
+    <span class="nav-panel-title">Menu</span>
+    <button class="nav-close" id="navClose" aria-label="Close navigation menu">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <button data-page="home" class="active">
+    <svg viewBox="0 0 18 18" fill="none"><path d="M2.5 8.5L9 3L15.5 8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 7.5V14.5H13.5V7.5" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    Home
+  </button>
+  <button data-page="home" data-scroll="analyzer">
+    <svg viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M11.8 11.8L15 15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    Video Analyzer
+  </button>
+  <button data-page="home" data-scroll="thumbnailDownloader">
+    <svg viewBox="0 0 18 18" fill="none"><rect x="2.5" y="3.5" width="13" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="7" r="1" fill="currentColor"/><path d="M3.2 12L6.8 8.6L9 10.6L11.8 7.8L14.8 11.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Thumbnail Downloader
+  </button>
+  <button data-page="home" data-scroll="videoInformation">
+    <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.3" stroke="currentColor" stroke-width="1.3"/><path d="M9 8.2V13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="9" cy="5.6" r="0.9" fill="currentColor"/></svg>
+    Video Information
+  </button>
+  <button data-page="channel">
+    <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="6.5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M3.5 15C3.9 11.8 6.2 10.3 9 10.3C11.8 10.3 14.1 11.8 14.5 15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    Channel Analyzer
+  </button>
+  <button data-page="notifications" id="notificationsNavBtn" style="position:relative;">
+    <svg viewBox="0 0 18 18" fill="none"><path d="M9 2.5C6.8 2.5 5.5 4 5.5 6.3V9.2L4 12H14L12.5 9.2V6.3C12.5 4 11.2 2.5 9 2.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7.3 14C7.6 14.9 8.2 15.5 9 15.5C9.8 15.5 10.4 14.9 10.7 14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    Notifications
+    <span id="notifCountBadge" class="notif-badge" style="display:none;"></span>
+  </button>
+  <button data-page="premium">
+    <svg viewBox="0 0 18 18" fill="none"><path d="M9 2L11 6.5L16 7.2L12.5 10.6L13.3 15.5L9 13.2L4.7 15.5L5.5 10.6L2 7.2L7 6.5L9 2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    Premium
+  </button>
+  <button data-page="admin" id="adminNavBtn" style="display:none;">
+    <svg viewBox="0 0 18 18" fill="none"><path d="M9 2L15.5 5V9.5C15.5 13 12.7 15.5 9 16.5C5.3 15.5 2.5 13 2.5 9.5V5L9 2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    Admin
+  </button>
+  <div class="nav-divider"></div>
+  <button data-page="documentation">
+    <svg viewBox="0 0 18 18" fill="none"><path d="M5 2.5H11.5L14 5V15.5H5V2.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 8H12M7 11H12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Documentation
+  </button>
+  <button data-page="api-info">
+    <svg viewBox="0 0 18 18" fill="none"><rect x="2.5" y="4" width="13" height="10" rx="1.6" stroke="currentColor" stroke-width="1.3"/><path d="M6 8.5L4.3 10L6 11.5M12 8.5L13.7 10L12 11.5M10 7.5L8 12.5" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    API Information
+  </button>
+  <button data-page="limitations">
+    <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.3" stroke="currentColor" stroke-width="1.3"/><path d="M9 5.5V9.5M9 12.2H9.007" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    Limitations
+  </button>
+  <div class="nav-divider"></div>
+  <button data-page="terms">
+    <svg viewBox="0 0 18 18" fill="none"><path d="M5 2.5H11.5L14 5V15.5H5V2.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 9.5L8.3 10.8L11 7.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Terms &amp; Conditions
+  </button>
+  <button data-page="privacy">
+    <svg viewBox="0 0 18 18" fill="none"><path d="M9 2.5L14.5 4.5V8.7C14.5 12 12.2 14.7 9 15.5C5.8 14.7 3.5 12 3.5 8.7V4.5L9 2.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    Privacy Policy
+  </button>
+  <button data-page="about">
+    <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.3" stroke="currentColor" stroke-width="1.3"/><path d="M9 8.3V12.5M9 5.9H9.007" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    About
+  </button>
+</nav>
+
+<!-- ================= HOME / ANALYZER PAGE ================= -->
+<main class="page active" id="page-home">
+  <div class="container">
+    <section class="hero" id="analyzer">
+      <h1>Analyze YouTube videos with precision</h1>
+      <p class="lead">Extract available video metadata, identifiers, statistics, publication timing and thumbnails using the YouTube Data API. Every value shown here comes directly from an API response.</p>
+
+      <div id="videoAnalyzerDisabledNote" class="auth-gate-note" style="display:none; margin-bottom:16px;">The Video Analyzer is temporarily turned off by the admin. Please check back later.</div>
+
+      <form id="analyzeForm" autocomplete="off">
+        <div class="analyzer-bar">
+          <label for="videoUrl" class="sr-only">Paste YouTube video URL</label>
+          <input type="text" id="videoUrl" placeholder="Paste YouTube video URL — e.g. https://www.youtube.com/watch?v=..." aria-describedby="urlValidation">
+          <button type="submit" class="btn btn-primary" id="analyzeBtn">Analyze Video</button>
+        </div>
+
+        <div class="validation-msg" id="urlValidation" role="alert"></div>
+      </form>
+
+      <div class="loading-state" id="loadingState">
+        <div class="spinner"></div>
+        <span>Analyzing video…</span>
+      </div>
+    </section>
+
+    <div class="error-card" id="errorCard" role="alert">
+      <h3 id="errorTitle">Unable to analyze this video</h3>
+      <p id="errorBody"></p>
+    </div>
+
+    <section id="results">
+      <div class="results-grid">
+        <!-- LEFT COLUMN -->
+        <div class="stack">
+          <div class="glass-card" id="videoInformation">
+            <div class="video-thumb-wrap">
+              <img id="mainThumb" alt="">
+              <span class="duration-badge" id="durationBadge"></span>
+            </div>
+            <h2 class="video-title" id="videoTitle"></h2>
+            <div class="channel-line">
+              <img id="channelThumbSmall" alt="">
+              <span id="channelNameLine"></span>
+            </div>
+
+            <div class="inline-copy-row">
+              <span class="field-label">Title</span>
+              <button class="copy-btn" data-copy-target="videoTitle" data-copy-label="title">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M5.5 5.5V3.5C5.5 2.94772 5.94772 2.5 6.5 2.5H12.5C13.0523 2.5 13.5 2.94772 13.5 3.5V9.5C13.5 10.0523 13.0523 10.5 12.5 10.5H10.5M3.5 5.5H9.5C10.0523 5.5 10.5 5.94772 10.5 6.5V12.5C10.5 13.0523 10.0523 13.5 9.5 13.5H3.5C2.94772 13.5 2.5 13.0523 2.5 12.5V6.5C2.5 5.94772 2.94772 5.5 3.5 5.5Z" stroke="currentColor" stroke-width="1.3"/></svg>
+                Copy Title
+              </button>
+            </div>
+
+            <div class="field-row"><span class="field-label">Video ID</span><span class="field-value" id="fieldVideoId"></span></div>
+            <div class="field-row"><span class="field-label"></span>
+              <button class="copy-btn" data-copy-target="fieldVideoId" data-copy-label="Video ID">Copy</button>
+            </div>
+            <div class="field-row"><span class="field-label">Channel ID</span><span class="field-value" id="fieldChannelId"></span></div>
+            <div class="field-row"><span class="field-label"></span>
+              <button class="copy-btn" data-copy-target="fieldChannelId" data-copy-label="Channel ID">Copy</button>
+            </div>
+            <div class="field-row"><span class="field-label">Category</span><span class="field-value" id="fieldCategory"></span></div>
+            <div class="field-row"><span class="field-label">Privacy status</span><span class="field-value" id="fieldPrivacy"></span></div>
+
+            <div style="margin-top:20px;">
+              <div class="inline-copy-row">
+                <span class="section-title" style="margin:0;">Description</span>
+                <button class="copy-btn" data-copy-target="descriptionText" data-copy-label="description">Copy Description</button>
+              </div>
+              <div class="scroll-box" id="descriptionText"></div>
+              <button class="expand-link" id="expandDescBtn">Expand</button>
+            </div>
+
+            <div style="margin-top:20px;">
+              <div class="inline-copy-row">
+                <span class="section-title" style="margin:0;">Video Tags</span>
+                <button class="copy-btn" data-copy-target="tagsRaw" data-copy-label="tags" id="copyTagsBtn">Copy Tags</button>
+              </div>
+              <div class="tags-wrap" id="tagsWrap"></div>
+              <span class="sr-only" id="tagsRaw"></span>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div class="section-title">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.2" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 4V7.5L9.8 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Video Age
+            </div>
+            <div class="age-hero" id="ageSentence"></div>
+            <div class="age-breakdown" id="ageBreakdown"></div>
+          </div>
+
+          <div class="glass-card" id="thumbnailDownloader">
+            <div class="section-title">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="2" y="3" width="11" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 6H13" stroke="currentColor" stroke-width="1.2"/></svg>
+              Thumbnail Downloader
+            </div>
+            <div class="thumb-grid" id="thumbGrid"></div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="stack">
+          <div class="glass-card">
+            <div class="section-title">Video Statistics</div>
+            <div class="stat-grid" id="statGrid"></div>
+          </div>
+
+          <div class="glass-card">
+            <div class="section-title">Channel Information</div>
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+              <img id="channelThumbLarge" alt="" style="width:52px;height:52px;border-radius:50%;border:1px solid var(--border);">
+              <div>
+                <div style="font-weight:600; font-size:15px;" id="channelNameLarge"></div>
+                <a id="channelUrlLink" href="#" target="_blank" rel="noopener" style="font-size:12.5px; color:var(--accent); text-decoration:none;">View channel</a>
+              </div>
+            </div>
+            <div class="field-row"><span class="field-label">Channel ID</span><span class="field-value" id="chFieldId"></span></div>
+            <div class="field-row"><span class="field-label"></span><button class="copy-btn" data-copy-target="chFieldId" data-copy-label="Channel ID">Copy</button></div>
+            <div class="field-row"><span class="field-label">Subscribers</span><span class="field-value" id="chSubs"></span></div>
+            <div class="field-row"><span class="field-label">Total videos</span><span class="field-value" id="chVideos"></span></div>
+            <div class="field-row"><span class="field-label">Total views</span><span class="field-value" id="chViews"></span></div>
+            <div style="margin-top:14px;">
+              <div class="field-label" style="margin-bottom:6px;">Description</div>
+              <div class="scroll-box" id="chDescription" style="max-height:110px; font-size:13px;"></div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div class="section-title">Published</div>
+            <div class="field-row"><span class="field-label">Date</span><span class="field-value" id="pubDate"></span></div>
+            <div class="field-row"><span class="field-label">Time</span><span class="field-value" id="pubTime"></span></div>
+            <div class="field-row"><span class="field-label">Weekday</span><span class="field-value" id="pubWeekday"></span></div>
+
+            <details class="tech-details">
+              <summary><svg class="chev" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1L7 5L3 9" stroke="currentColor" stroke-width="1.4"/></svg> Technical Details</summary>
+              <div class="field-row"><span class="field-label">publishedAt (ISO)</span><span class="field-value" id="isoTimestamp"></span></div>
+              <div class="field-row"><span class="field-label">Duration (ISO 8601)</span><span class="field-value" id="isoDuration"></span></div>
+              <div class="inline-copy-row" style="margin-top:12px;">
+                <span class="field-label">Raw API resource</span>
+                <button class="copy-btn" id="copyJsonBtn">Copy JSON</button>
+              </div>
+              <div class="json-viewer" id="jsonViewer"></div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin:90px 0 60px;">
+      <div class="glass-card">
+        <div class="section-title">API Usage &amp; Limitations</div>
+        <p style="color:var(--text-dim); font-size:14px; line-height:1.7; margin:0 0 10px;">
+          The YouTube Data API v3 operates on a shared daily quota measured in units, and different endpoints consume different amounts. This tool does not have unlimited usage: once your key's quota is exhausted for the day, requests will fail until the quota resets. See the full <button class="linklike" data-page="limitations" style="background:none;border:none;color:var(--accent);cursor:pointer;padding:0;font:inherit;">Limitations page</button> for details on what this means for analysis results.
+        </p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ================= CHANNEL ANALYZER ================= -->
+<main class="page" id="page-channel">
+  <div class="container">
+    <section class="hero" style="padding:56px 0 40px;">
+      <h1 style="font-size:clamp(28px,4.2vw,42px);">Analyze a YouTube channel</h1>
+      <p class="lead">Paste a channel handle, URL, or ID to see its about info, publish date, live age, and full upload list — with a one-click path into the video analyzer for any of its videos.</p>
+
+      <div id="channelAnalyzerDisabledNote" class="auth-gate-note" style="display:none; margin-bottom:16px;">The Channel Analyzer is temporarily turned off by the admin. Please check back later.</div>
+
+      <form id="channelForm" autocomplete="off">
+        <div class="analyzer-bar">
+          <label for="channelQuery" class="sr-only">Paste channel handle, URL, or ID</label>
+          <input type="text" id="channelQuery" placeholder="e.g. @channelhandle, a channel URL, or a channel ID" aria-describedby="channelValidation">
+          <button type="submit" class="btn btn-primary" id="analyzeChannelBtn">Analyze Channel</button>
+        </div>
+        <div class="validation-msg" id="channelValidation" role="alert"></div>
+      </form>
+
+      <div class="loading-state" id="channelLoadingState">
+        <div class="spinner"></div>
+        <span>Analyzing channel…</span>
+      </div>
+    </section>
+
+    <div class="error-card" id="channelErrorCard" role="alert">
+      <h3 id="channelErrorTitle">Unable to analyze this channel</h3>
+      <p id="channelErrorBody"></p>
+    </div>
+
+    <section id="channelResults">
+      <div class="results-grid">
+        <!-- LEFT COLUMN -->
+        <div class="stack">
+          <div class="glass-card">
+            <div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">
+              <img id="chHeroAvatar" alt="" style="width:64px;height:64px;border-radius:50%;border:1px solid var(--border); flex-shrink:0;">
+              <div style="min-width:0;">
+                <div style="font-weight:700; font-size:19px; letter-spacing:-0.01em;" id="chHeroName"></div>
+                <a id="chHeroHandle" href="#" target="_blank" rel="noopener" style="font-size:13px; color:var(--accent); text-decoration:none;"></a>
+              </div>
+            </div>
+
+            <div class="field-row"><span class="field-label">Channel ID</span><span class="field-value" id="chHeroId"></span></div>
+            <div class="field-row"><span class="field-label"></span><button class="copy-btn" data-copy-target="chHeroId" data-copy-label="Channel ID">Copy</button></div>
+            <div class="field-row"><span class="field-label">Channel URL</span><span class="field-value" id="chHeroUrlText"></span></div>
+            <div class="field-row"><span class="field-label"></span><button class="copy-btn" data-copy-target="chHeroUrlText" data-copy-label="Channel URL">Copy</button></div>
+
+            <div class="stat-grid" style="margin:18px 0;">
+              <div class="stat-box"><div class="num" id="chStatSubs"></div><div class="lbl">Subscribers</div></div>
+              <div class="stat-box"><div class="num" id="chStatVideos"></div><div class="lbl">Total videos</div></div>
+              <div class="stat-box"><div class="num" id="chStatViews"></div><div class="lbl">Total views</div></div>
+              <div class="stat-box"><div class="num" id="chStatCreated"></div><div class="lbl">Years active</div></div>
+            </div>
+
+            <div class="inline-copy-row">
+              <span class="section-title" style="margin:0;">About</span>
+              <button class="copy-btn" data-copy-target="chAboutText" data-copy-label="channel description">Copy About</button>
+            </div>
+            <div class="scroll-box" id="chAboutText"></div>
+            <button class="expand-link" id="expandAboutBtn">Expand</button>
+
+            <div style="margin-top:20px;">
+              <div class="inline-copy-row">
+                <span class="section-title" style="margin:0;">Channel Tags</span>
+                <button class="copy-btn" data-copy-target="chTagsRaw" data-copy-label="channel tags" id="chCopyTagsBtn">Copy Tags</button>
+              </div>
+              <div class="tags-wrap" id="chTagsWrap"></div>
+              <span class="sr-only" id="chTagsRaw"></span>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div class="section-title">Channel Age</div>
+            <div class="age-hero" id="chAgeSentence"></div>
+            <div class="age-breakdown" id="chAgeBreakdown"></div>
+          </div>
+
+          <div class="glass-card">
+            <div class="section-title">Published</div>
+            <div class="field-row"><span class="field-label">Date</span><span class="field-value" id="chPubDate"></span></div>
+            <div class="field-row"><span class="field-label">Time</span><span class="field-value" id="chPubTime"></span></div>
+            <div class="field-row"><span class="field-label">Weekday</span><span class="field-value" id="chPubWeekday"></span></div>
+
+            <details class="tech-details">
+              <summary><svg class="chev" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1L7 5L3 9" stroke="currentColor" stroke-width="1.4"/></svg> Technical Details</summary>
+              <div class="field-row"><span class="field-label">publishedAt (ISO)</span><span class="field-value" id="chIsoTimestamp"></span></div>
+              <div class="inline-copy-row" style="margin-top:12px;">
+                <span class="field-label">Raw API resource</span>
+                <button class="copy-btn" id="chCopyJsonBtn">Copy JSON</button>
+              </div>
+              <div class="json-viewer" id="chJsonViewer"></div>
+            </details>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="stack">
+          <div class="glass-card">
+            <div class="section-title">Uploads</div>
+            <div class="video-list" id="channelVideoList"></div>
+            <button class="btn btn-ghost" id="loadMoreVideosBtn" style="display:none; width:100%; margin-top:14px;">Load more videos</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ================= DOCUMENTATION ================= -->
+<main class="page" id="page-documentation">
+  <div class="container doc-page">
+    <h1>Documentation</h1>
+    <p class="updated">How Nirbhay Video Matrix retrieves and displays data</p>
+
+    <h2>Overview</h2>
+    <p>This build of Nirbhay Video Matrix is a single self-contained HTML file with no server component. It calls the YouTube Data API v3 directly from your browser, using a key configured by whoever distributed this file. It parses a video URL, requests the <code>videos</code> and <code>channels</code> resources, and renders the fields those responses return.</p>
+
+    <h2>Supported URL formats</h2>
+    <ul>
+      <li><code>https://www.youtube.com/watch?v=VIDEO_ID</code></li>
+      <li><code>https://youtu.be/VIDEO_ID</code></li>
+      <li><code>https://www.youtube.com/shorts/VIDEO_ID</code></li>
+    </ul>
+
+    <h2>API resources requested</h2>
+    <p>To minimize quota usage, only the parts actually rendered in the interface are requested:</p>
+    <ul>
+      <li><code>videos.list</code> with <code>part=snippet,contentDetails,statistics,status</code></li>
+      <li><code>channels.list</code> with <code>part=snippet,statistics</code></li>
+    </ul>
+
+    <h2>About the configured key</h2>
+    <p>Because this file has no backend to keep a secret on its own, the API key it uses is embedded directly in the page's source code. Anyone who views this page's source can see that key. This is a deliberate tradeoff made so the file can be opened and used immediately, by anyone, with no setup — see the Privacy page for what that means in practice, and the API Information page for how usage of that shared key is affected.</p>
+
+    <h2>Video age calculation</h2>
+    <p>Age is computed with calendar-accurate arithmetic between the current time and the video's <code>publishedAt</code> timestamp — accounting for actual month lengths and leap years rather than averaging days per month — and is broken into years, months, days, hours, minutes and seconds. The on-screen counter re-runs this calculation once per second.</p>
+
+    <h2>Thumbnails</h2>
+    <p>Thumbnail URLs and dimensions come directly from the <code>snippet.thumbnails</code> object in the API response; no thumbnail URL is constructed or guessed by this tool. Downloading a thumbnail fetches the image in your browser and saves it as a file; if your browser's security settings block reading the image bytes directly (this can happen depending on how the image host is configured), the tool opens the full-size image in a new tab instead so it can still be saved manually.</p>
+
+    <h2>Rate limiting and input handling</h2>
+    <p>The Analyze button is disabled for the duration of a request to prevent duplicate submissions, and the URL field is validated before any network request is made. A malformed or unsupported URL never reaches the network layer at all — it is caught and reported at the input stage.</p>
+
+    <h2>How theme selection works</h2>
+    <p>The theme control in the header cycles between Dark, Night, and Day. The choice is stored in your browser's local storage under a single key so it persists between visits, and is applied by setting a <code>data-theme</code> attribute on the page's root element; all colors in the interface are defined as CSS custom properties that respond to that attribute, so no page reload is needed when switching.</p>
+
+    <h2>Copy system behavior</h2>
+    <p>Every Copy control uses the browser's native Clipboard API. On success, the button's label temporarily changes to "Copied" and reverts automatically after a short interval; if the browser denies clipboard access — which can happen in some embedded or non-secure contexts — the button reports that copying was not possible rather than failing silently.</p>
+
+    <h2>Reading the Technical Details panel</h2>
+    <p>Each result includes an expandable Technical Details section containing the exact <code>videos</code> and <code>channels</code> API resources used to populate the page, formatted as readable JSON. This is intended for anyone who wants to verify precisely where a displayed value came from, or who wants to see fields the interface does not surface directly. A Copy JSON control copies this entire payload.</p>
+
+    <h2>Running this application</h2>
+    <p>This is a single HTML file with everything — markup, styling, and logic — inline. Opening it in any modern browser is enough to use it; there is nothing to install and no server to start.</p>
+
+    <h2>Browser support</h2>
+    <p>The frontend relies on the <code>fetch</code>, Clipboard, and <code>Intl.DateTimeFormat</code> APIs, all standard in current versions of Chrome, Firefox, Safari, and Edge.</p>
+
+    <h2>Extending this tool</h2>
+    <p>Because the interface, the URL parser, the age calculator, and the API-calling logic are kept as clearly separated functions within the file, adding a new displayed field generally means adding one line to the API request's <code>part</code> parameter and one corresponding element to the results template, without needing to change unrelated sections such as the theme system or the copy system.</p>
+  </div>
+</main>
+
+<!-- ================= LIMITATIONS ================= -->
+<main class="page" id="page-limitations">
+  <div class="container doc-page">
+    <h1>Limitations</h1>
+    <p class="updated">What this tool can and cannot show you</p>
+
+    <h2>Scope of available data</h2>
+    <p>Nirbhay Video Matrix can only display information that the YouTube Data API v3 legitimately returns for a given video and channel. It does not access, infer, bypass, or reconstruct any information beyond that. If a value is not present in the API response, the interface will say so explicitly rather than guessing, averaging, or filling in a plausible-looking substitute. This is a deliberate design choice: a blank or estimated figure is worse than no figure at all, because it can be mistaken for real data.</p>
+    <p>Every field rendered in the analysis card, the statistics dashboard, the channel panel, and the Technical Details JSON viewer traces back to one of two API calls — a <code>videos.list</code> request and a <code>channels.list</code> request. Nothing shown in the interface is derived from any other source, scraped from the public YouTube website, or cached from a prior request to a different video.</p>
+
+    <h2>Fields that may be unavailable</h2>
+    <ul>
+      <li><strong>Like count</strong> — creators can hide this from the public API response since YouTube introduced the option to conceal dislike counts and, in some account configurations, like counts as well.</li>
+      <li><strong>Comment count</strong> — unavailable if comments are disabled on the video, or if comments are held for review and not yet published.</li>
+      <li><strong>Subscriber count</strong> — some channels hide this figure; when hidden, the API returns a flag indicating the count is suppressed rather than a number, and this tool reflects that as "Hidden by channel" rather than zero.</li>
+      <li><strong>Category</strong> — not always present depending on how the video was uploaded, and even when present it is returned only as a numeric category ID rather than a resolved category name, since resolving that name requires an additional API call this tool does not make in order to conserve quota.</li>
+      <li><strong>Channel description and channel thumbnail</strong> — a channel can leave its description empty or restrict its avatar, in which case the corresponding field will be blank in the API response.</li>
+      <li><strong>Maximum-resolution thumbnail</strong> — the 1280×720 <code>maxres</code> thumbnail is only generated for videos uploaded in sufficiently high resolution; older or lower-resolution uploads may only have "High," "Medium," and "Default" sizes available.</li>
+    </ul>
+    <p>Where a field is missing from the API response, the interface states <code>Not available</code> rather than estimating or fabricating a value. This applies uniformly across the statistics dashboard, the channel panel, and every copyable field in the analysis card.</p>
+
+    <h2>Videos that cannot be analyzed</h2>
+    <ul>
+      <li><strong>Private videos</strong> — not retrievable by an API key that isn't the video owner's own authenticated request; a private video will return an empty result set as though the video ID does not exist.</li>
+      <li><strong>Deleted or removed videos</strong> — including videos removed for a Terms of Service violation, a copyright claim, or at the uploader's own request.</li>
+      <li><strong>Unlisted videos</strong> — retrievable by direct video ID in most cases, since unlisted is not the same access level as private, but this can vary.</li>
+      <li><strong>Region-restricted videos</strong> — a video blocked in the region associated with the requesting API key may return incomplete metadata or fail outright, depending on how the restriction was configured by the rights holder.</li>
+      <li><strong>Age-restricted videos</strong> — may return limited metadata, since some fields are only available to authenticated, age-verified requests rather than a general-purpose API key.</li>
+      <li><strong>Livestreams and premieres</strong> — a video that is currently live or scheduled as a premiere may return statistics that are still in flux, partial duration data, or a status that differs from a normally published upload.</li>
+    </ul>
+
+    <h2>Numerical accuracy and timing</h2>
+    <p>View, like, and comment counts returned by the API are not updated in real time on YouTube's side; YouTube itself applies some smoothing and delay to these figures before they are exposed through any interface, including the API. A number shown here reflects what the API returned at the moment of the request, not necessarily the count visible on youtube.com at that exact same instant.</p>
+    <p>The video age calculation is accurate down to the second relative to your device's system clock and the <code>publishedAt</code> timestamp returned by the API. If your device's clock is incorrect, the displayed age will be off by the same amount, since this tool has no independent source of the current time.</p>
+
+    <h2>API quota</h2>
+    <p>The YouTube Data API v3 enforces a daily quota per key, measured in quota units rather than in a simple request count — different endpoints and parts consume different amounts of quota. Once a key's quota is exhausted, every request made with that key fails until the quota resets on Google's schedule, regardless of how this tool is used or how the request is structured. This tool does not provide, promise, or simulate unlimited API access, and it does not maintain its own pool of shared quota on your behalf.</p>
+
+    <h2>Channel Analyzer quota cost</h2>
+    <p>Looking up a channel by its ID, handle, or URL is inexpensive. Looking a channel up by a plain name it doesn't recognize as a handle falls back to YouTube's search endpoint, which costs substantially more quota per request than any other call this tool makes — so channel name search should be used sparingly, especially on a shared key. The uploads list is fetched through the channel's uploads playlist rather than search, which keeps browsing a channel's videos inexpensive regardless of how many are loaded.</p>
+
+    <h2>No privacy bypass</h2>
+    <p>This tool does not circumvent YouTube's privacy settings, age restrictions, regional restrictions, monetization status, or any other access control enforced by YouTube or by the uploader. It surfaces exactly what the YouTube Data API is willing to return for the credentials used to query it — nothing more, and nothing that a developer with the same key and the same public API documentation could not already retrieve directly.</p>
+
+    <h2>What this tool is not</h2>
+    <p>Nirbhay Video Matrix is a metadata inspector, not an analytics platform, a download service for video files, or a monetization estimator. It analyzes one video or one channel at a time, on request, and does not run in the background, does not poll YouTube periodically, and does not build any historical record of a video's or channel's performance over time.</p>
+  </div>
+</main>
+
+<!-- ================= ADMIN (live broadcast) ================= -->
+<main class="page" id="page-admin">
+  <div class="container doc-page">
+    <h1>Admin</h1>
+    <p class="updated">Push a live update — every visitor with the site open sees it within a second, no refresh needed.</p>
+
+    <div id="adminSignedOutNote" class="auth-gate-note">Sign in with Google to manage live updates.</div>
+    <div id="adminNotAuthorizedNote" class="auth-gate-note" style="display:none;">Your Google account is signed in but is not on the admin list for this site.</div>
+
+    <div id="adminPanel" style="display:none;">
+      <div class="admin-box">
+        <label for="broadcastTitle" style="font-size:13px; font-weight:600; display:block; margin-bottom:8px;">Title (optional)</label>
+        <input type="text" id="broadcastTitle" maxlength="80" placeholder="e.g. Scheduled maintenance"
+          style="width:100%; background:var(--bg-elevated); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-family:var(--sans); font-size:13.5px; margin-bottom:12px;">
+
+        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:8px;">Type</label>
+        <div class="admin-row" id="broadcastTypeRow" style="margin-top:0; margin-bottom:12px;">
+          <button type="button" class="type-pill active" data-type="info">Info</button>
+          <button type="button" class="type-pill" data-type="success">Success</button>
+          <button type="button" class="type-pill" data-type="warning">Warning</button>
+          <button type="button" class="type-pill" data-type="urgent">Urgent</button>
+        </div>
+
+        <label for="broadcastInput" style="font-size:13px; font-weight:600; display:block; margin-bottom:8px;">Message</label>
+        <textarea id="broadcastInput" placeholder="e.g. Channel Analyzer will be briefly unavailable while we roll out an update…" maxlength="500"></textarea>
+        <div class="admin-row">
+          <button type="button" class="analyze-btn" id="postBroadcastBtn" style="padding:10px 18px; border-radius:10px; border:none; background:linear-gradient(135deg,var(--accent),var(--teal)); color:#fff; font-weight:600; cursor:pointer;">Post update</button>
+          <span id="postBroadcastStatus" style="font-size:12.5px; color:var(--text-faint);"></span>
+        </div>
+      </div>
+
+      <div class="inline-copy-row" style="margin-top:26px;">
+        <h2 style="margin:0;">Recent updates</h2>
+        <button type="button" id="clearAllBroadcastsBtn" style="background:none; border:1px solid var(--border); color:var(--danger); border-radius:8px; padding:6px 12px; cursor:pointer; font-size:12px;">Clear all</button>
+      </div>
+      <div class="admin-list" id="adminBroadcastList"></div>
+
+      <h2 style="margin-top:34px;">Users</h2>
+      <p style="color:var(--text-dim); font-size:13.5px; line-height:1.6; margin:4px 0 16px;">Everyone who has signed in with Google. Grant Premium or ban an account from here — changes apply instantly, everywhere that account is signed in.</p>
+      <div class="admin-list" id="adminUsersList" style="gap:10px;"></div>
+
+      <h2 style="margin-top:34px;">Site controls</h2>
+      <p style="color:var(--text-dim); font-size:13.5px; line-height:1.6; margin:4px 0 16px;">Turn a tool off for everyone (except you) instantly — useful during maintenance or if you're rolling out a change.</p>
+      <div class="admin-box" style="display:flex; flex-direction:column; gap:14px;">
+        <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+          <span>Video Analyzer enabled</span>
+          <input type="checkbox" id="toggleVideoAnalyzer" checked style="width:18px; height:18px;">
+        </label>
+        <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+          <span>Channel Analyzer enabled</span>
+          <input type="checkbox" id="toggleChannelAnalyzer" checked style="width:18px; height:18px;">
+        </label>
+      </div>
+
+      <h2 style="margin-top:34px;">Premium plans &amp; payment</h2>
+      <p style="color:var(--text-dim); font-size:13.5px; line-height:1.6; margin:4px 0 16px;">Everything here is live on the public Premium page — edits show up for visitors immediately.</p>
+      <div class="admin-box" id="pricingAdminBox" style="display:flex; flex-direction:column; gap:18px;">
+        <div class="pricing-plan-editor" data-plan="1">
+          <div style="font-size:12.5px; font-weight:700; color:var(--text-faint); margin-bottom:8px; text-transform:uppercase; letter-spacing:.04em;">Plan 1</div>
+          <input type="text" class="plan-input" data-field="name" placeholder="Plan name (e.g. Starter)">
+          <input type="text" class="plan-input" data-field="price" placeholder="Price (e.g. ₹100/month)">
+          <input type="text" class="plan-input" data-field="desc" placeholder="Short description">
+        </div>
+        <div class="pricing-plan-editor" data-plan="2">
+          <div style="font-size:12.5px; font-weight:700; color:var(--text-faint); margin-bottom:8px; text-transform:uppercase; letter-spacing:.04em;">Plan 2</div>
+          <input type="text" class="plan-input" data-field="name" placeholder="Plan name (e.g. Pro)">
+          <input type="text" class="plan-input" data-field="price" placeholder="Price (e.g. ₹299/month)">
+          <input type="text" class="plan-input" data-field="desc" placeholder="Short description">
+        </div>
+        <div class="pricing-plan-editor" data-plan="3">
+          <div style="font-size:12.5px; font-weight:700; color:var(--text-faint); margin-bottom:8px; text-transform:uppercase; letter-spacing:.04em;">Plan 3</div>
+          <input type="text" class="plan-input" data-field="name" placeholder="Plan name (e.g. Ultimate)">
+          <input type="text" class="plan-input" data-field="price" placeholder="Price (e.g. ₹599/month)">
+          <input type="text" class="plan-input" data-field="desc" placeholder="Short description">
+        </div>
+
+        <div style="border-top:1px solid var(--border); padding-top:16px;">
+          <label style="font-size:13px; font-weight:600; display:block; margin-bottom:8px;">UPI ID</label>
+          <input type="text" id="upiIdInput" class="plan-input" placeholder="yourname@upi">
+
+          <label style="font-size:13px; font-weight:600; display:block; margin:16px 0 8px;">Payment QR code</label>
+          <input type="file" id="qrUploadInput" accept="image/*" style="font-size:12.5px; color:var(--text-dim);">
+          <div id="qrUploadStatus" style="font-size:12px; color:var(--text-faint); margin-top:6px;"></div>
+        </div>
+
+        <div class="admin-row">
+          <button type="button" id="savePricingBtn" style="padding:10px 18px; border-radius:10px; border:none; background:linear-gradient(135deg,var(--accent),var(--teal)); color:#fff; font-weight:600; cursor:pointer;">Save plans &amp; payment info</button>
+          <span id="savePricingStatus" style="font-size:12.5px; color:var(--text-faint);"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ================= NOTIFICATIONS ================= -->
+<main class="page" id="page-notifications">
+  <div class="container doc-page">
+    <h1>Notifications</h1>
+    <p class="updated">Every live update posted by the site admin — newest first.</p>
+    <div class="admin-list" id="notificationsList" style="margin-top:22px;"></div>
+  </div>
+</main>
+
+<!-- ================= PREMIUM ================= -->
+<main class="page" id="page-premium">
+  <div class="container">
+    <section class="hero" style="padding:56px 0 30px;">
+      <h1 style="font-size:clamp(28px,4.2vw,42px);">Go Premium</h1>
+      <p class="lead">Unlock everything Nirbhay Video Matrix has to offer. Pick a plan, pay via UPI, and send your payment screenshot to the admin to get activated.</p>
+    </section>
+
+    <div class="plans-grid" id="plansGrid">
+      <div class="plan-card">
+        <div class="plan-name" id="planName1">Starter</div>
+        <div class="plan-price"><span id="planPrice1">₹100</span><span class="plan-period">/month</span></div>
+        <div class="plan-desc" id="planDesc1">Basic premium access.</div>
+      </div>
+      <div class="plan-card featured">
+        <div class="plan-badge">Most popular</div>
+        <div class="plan-name" id="planName2">Pro</div>
+        <div class="plan-price"><span id="planPrice2">₹299</span><span class="plan-period">/month</span></div>
+        <div class="plan-desc" id="planDesc2">Full premium access.</div>
+      </div>
+      <div class="plan-card">
+        <div class="plan-name" id="planName3">Ultimate</div>
+        <div class="plan-price"><span id="planPrice3">₹599</span><span class="plan-period">/month</span></div>
+        <div class="plan-desc" id="planDesc3">Everything, priority support.</div>
+      </div>
+    </div>
+
+    <div class="glass-card" style="margin-top:28px; text-align:center;">
+      <div class="section-title" style="justify-content:center;">Pay via UPI</div>
+      <img id="paymentQrImg" src="" alt="Payment QR code" style="max-width:220px; width:100%; border-radius:12px; border:1px solid var(--border); margin:12px 0; display:none;">
+      <div id="noQrNote" class="empty-note">The admin hasn't uploaded a payment QR code yet.</div>
+      <div class="inline-copy-row" style="justify-content:center; gap:10px; margin-top:14px;">
+        <span class="field-value" id="upiIdText" style="font-size:15px;">Not set yet</span>
+        <button class="copy-btn" data-copy-target="upiIdText" data-copy-label="UPI ID">Copy UPI ID</button>
+      </div>
+      <p style="color:var(--text-faint); font-size:13px; margin-top:18px;">After paying, email your screenshot and the plan you chose to <a href="mailto:contact.nirbhayexplorer@gmail.com">contact.nirbhayexplorer@gmail.com</a> — Premium is activated manually once payment is confirmed.</p>
+    </div>
+  </div>
+</main>
+
+<!-- ================= TERMS ================= -->
+<main class="page" id="page-terms">
+  <div class="container doc-page">
+    <h1>Terms &amp; Conditions</h1>
+    <p class="updated">Please read before using this application</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By accessing or using Nirbhay Video Matrix ("the application," "we," or "this service"), you acknowledge that you have read, understood, and agree to be bound by these Terms &amp; Conditions in full. If you do not agree with any part of these terms, you must discontinue use of the application immediately. These terms apply to every visitor, user, and anyone else who accesses the application, regardless of how it was deployed or accessed.</p>
+
+    <h2>2. Service Description</h2>
+    <p>Nirbhay Video Matrix allows a user to submit a YouTube video URL and view metadata about that video and its associated channel, retrieved live via the YouTube Data API v3. The application is a metadata inspection tool; it does not host, stream, download, re-encode, or redistribute any video file, and it does not modify or reinterpret the underlying content in any way beyond formatting it for display.</p>
+
+    <h2>3. API Usage</h2>
+    <p>The application relies entirely on the YouTube Data API v3, which is subject to Google's own terms, quota limits, rate limits, and availability, none of which are controlled by this application. Use of this application is also subject to the <a href="https://developers.google.com/youtube/terms/api-services-terms-of-service" target="_blank" rel="noopener">YouTube API Services Terms of Service</a> and, where applicable, the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a>. Continued use of this application constitutes acknowledgment that your activity is also governed by those third-party terms.</p>
+
+    <h2>4. User Responsibilities</h2>
+    <p>You are solely responsible for any YouTube Data API v3 key you provide to the application, for keeping that key confidential, and for any usage or charges billed against it. You agree to comply with YouTube's and Google's usage policies when supplying and using such a key, and you agree not to use the application to violate any third party's intellectual property rights, privacy rights, or other legal rights.</p>
+
+    <h2>5. Third-Party Services</h2>
+    <p>The application depends on the YouTube Data API v3, a third-party service operated by Google LLC, and may reference or link to other third-party resources such as Google's privacy policy or API terms. The application has no control over, and assumes no responsibility for, the content, policies, availability, or practices of any third-party service it depends on or links to.</p>
+
+    <h2>6. Data Accuracy</h2>
+    <p>All displayed information is sourced directly from API responses at the moment of the request and is presented without alteration. The application does not independently verify, fact-check, or guarantee that this information is complete, current, or free of error, since it depends entirely on data supplied by YouTube's systems and by the individual video's uploader. Figures such as view, like, and comment counts may differ slightly from what is shown on youtube.com due to normal propagation delay on YouTube's side.</p>
+
+    <h2>7. Availability</h2>
+    <p>The application is provided on an "as available" basis, with no guarantee of uptime, continuous operation, or freedom from interruption. Functionality may be interrupted at any time by API outages, quota exhaustion, changes to the YouTube Data API, browser or network conditions on your device, or maintenance of any infrastructure the application is deployed on.</p>
+
+    <h2>8. API Limitations</h2>
+    <p>Certain fields, videos, or channels may be inaccessible due to API restrictions, privacy or visibility settings chosen by the content owner, regional availability, or quota limits, as described in full on the Limitations page. The application is not able to override, request an exception to, or otherwise work around any such restriction.</p>
+
+    <h2>9. Prohibited Use</h2>
+    <p>You may not use the application to attempt to bypass YouTube's access controls or privacy settings; to scrape, harvest, or bulk-collect data at a scale or frequency that violates YouTube's API Services Terms of Service; to misrepresent data obtained through the application as though it were independently verified; to interfere with or disrupt the application's operation; or for any unlawful purpose whatsoever.</p>
+
+    <h2>10. Intellectual Property</h2>
+    <p>Video titles, descriptions, thumbnails, channel names, channel artwork, and all other content retrieved from the YouTube Data API remain the property of their respective creators, channel owners, and/or YouTube/Google, and are displayed here solely for informational, metadata-inspection purposes under fair use principles applicable to factual metadata display. The application's own interface design, original code, original copywriting, and original visual assets are the property of its operator and may not be copied or redistributed without permission.</p>
+
+    <h2>11. No Affiliation</h2>
+    <p>Nirbhay Video Matrix is an independent, third-party application. It is not affiliated with, sponsored by, endorsed by, or otherwise officially connected to YouTube, LLC or Google LLC, or any of their subsidiaries or affiliates. The names YouTube and Google, and any related trademarks, are the property of their respective owners and are used here only to describe the API this application consumes.</p>
+
+    <h2>12. Disclaimer</h2>
+    <p>The application is provided "as is" and "as available," without warranties of any kind, whether express, implied, or statutory, including without limitation any implied warranty of merchantability, fitness for a particular purpose, accuracy, or non-infringement.</p>
+
+    <h2>13. Limitation of Liability</h2>
+    <p>To the maximum extent permitted by applicable law, the operator of this application shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of data, revenue, or goodwill, arising out of or in connection with your access to or use of, or inability to access or use, the application, even if advised of the possibility of such damages.</p>
+
+    <h2>14. Indemnification</h2>
+    <p>You agree to indemnify and hold harmless the operator of this application from any claim, demand, liability, or expense — including reasonable legal fees — arising out of your use of the application, your violation of these Terms, or your violation of any third party's rights.</p>
+
+    <h2>15. Governing Law</h2>
+    <p>These Terms shall be governed by and construed in accordance with the laws of the jurisdiction in which the application's operator is established, without regard to conflict-of-law principles, unless otherwise required by applicable local law.</p>
+
+    <h2>16. Changes to Terms</h2>
+    <p>These Terms may be updated from time to time at the operator's discretion, and the "last updated" reference at the top of this page will reflect the date of the most recent revision. Continued use of the application after changes are published constitutes acceptance of the revised Terms.</p>
+
+    <h2>17. Contact Information</h2>
+    <p>For questions about these Terms, contact the application operator at <a href="mailto:contact.nirbhayexplorer@gmail.com">contact.nirbhayexplorer@gmail.com</a>.</p>
+  </div>
+</main>
+
+<!-- ================= PRIVACY ================= -->
+<main class="page" id="page-privacy">
+  <div class="container doc-page">
+    <h1>Privacy Policy</h1>
+    <p class="updated">What happens to your data when you use this application</p>
+
+    <h2>Introduction</h2>
+    <p>This Privacy Policy describes how Nirbhay Video Matrix handles information when you use it. We designed the application around a simple principle: it should only touch the minimum information necessary to perform the task you asked it to perform, and it should be transparent about exactly where that information goes.</p>
+
+    <h2>What information is processed</h2>
+    <p>The application processes one piece of information you provide directly: the YouTube video URL you paste into the analyzer. Because this file has no backend, that URL is used only to construct a request sent directly from your browser to the YouTube Data API. You are never asked for, and never need to provide, an API key of your own — this file already includes one, configured by whoever distributed it to you.</p>
+
+    <h2>YouTube URL processing</h2>
+    <p>The URL you paste is parsed entirely locally in your browser using pattern matching to extract an 11-character video ID. It is never transmitted to any destination other than the YouTube Data API request itself, and it is not stored beyond the current browser session unless your browser's own history or autofill retains it independently of this application.</p>
+
+    <h2>API requests</h2>
+    <p>Requests to the YouTube Data API are made directly from your browser to Google's servers. Google's handling of that request is governed by <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a> and the <a href="https://developers.google.com/youtube/terms/api-services-terms-of-service" target="_blank" rel="noopener">YouTube API Services Terms of Service</a>, neither of which is controlled by this application.</p>
+
+    <h2>Clipboard functionality</h2>
+    <p>Copy controls throughout the interface use your browser's native Clipboard API to copy text you explicitly requested to copy — such as a video title, a description, an ID, a thumbnail URL, or the raw JSON payload. This action happens entirely on your device; no clipboard content is transmitted anywhere by this application, logged, or made available to the application's operator.</p>
+
+    <h2>Cookies and local storage</h2>
+    <p>This application does not set cookies. It uses your browser's local storage for exactly one optional, functional purpose: remembering your selected color theme (Dark, Night, or Day) across visits. This is stored on your own device only, is never transmitted anywhere, and can be cleared at any time by clearing this page's data in your browser settings.</p>
+
+    <h2>Analytics and tracking</h2>
+    <p>This application does not include any analytics scripts, advertising trackers, session recording tools, or third-party tracking pixels of any kind. Your usage of the application is not measured, profiled, or reported to the application's operator.</p>
+
+    <h2>Data retention</h2>
+    <p>Because there is no backend server associated with this file, it does not retain, log, or store any video URLs, analysis results, or usage history beyond what your own browser chooses to keep locally under the terms described above.</p>
+
+    <h2>Third-party services</h2>
+    <p>The only third-party service this application communicates with is the YouTube Data API v3, operated by Google LLC. If the page is opened with an active internet connection, it may also load fonts from Google Fonts, subject to that provider's own privacy practices.</p>
+
+    <h2>Security</h2>
+    <p>This file has no server to keep a secret on your behalf, so the YouTube Data API key it uses is embedded directly in the page's source code and is visible to anyone who views that source. It is shared this way deliberately, to work with zero setup — see the Documentation page for more on this tradeoff. Because this is a shared, embedded key rather than a personal one, please don't redistribute this file more widely than intended, since heavy or abusive use could exhaust its quota for everyone using it.</p>
+
+    <h2>Children's privacy</h2>
+    <p>This application is not directed at children and does not knowingly collect personal information from children. Since the application does not collect personal information from any user in the first place, no age-specific data handling is required beyond what is described in this policy.</p>
+
+    <h2>User rights</h2>
+    <p>Since no data is collected, transmitted to, or stored by this application on any server, there is no application-held personal data for the operator to access, export, correct, or delete on your behalf. Your locally stored theme preference can be removed at any time from your own browser settings.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>This Privacy Policy may be updated from time to time to reflect changes in how the application functions. The "last updated" reference at the top of this page reflects the date of the most recent revision.</p>
+
+    <h2>Contact information</h2>
+    <p>For privacy questions, contact the application operator at <a href="mailto:contact.nirbhayexplorer@gmail.com">contact.nirbhayexplorer@gmail.com</a>.</p>
+  </div>
+</main>
+
+<!-- ================= API INFORMATION ================= -->
+<main class="page" id="page-api-info">
+  <div class="container doc-page">
+    <h1>API Information</h1>
+    <p class="updated">How the YouTube Data API v3 layer behind this application works</p>
+
+    <h2>Configured, not requested</h2>
+    <p>Nirbhay Video Matrix uses a single YouTube Data API v3 key embedded in this file by whoever distributed it. You are never asked to provide, paste, or manage an API key of your own — every analysis request uses that same configured key.</p>
+
+    <h2>What gets called</h2>
+    <ul>
+      <li><code>GET https://www.googleapis.com/youtube/v3/videos</code> — requested directly from your browser with <code>part=snippet,contentDetails,statistics,status</code> for the video ID extracted from your URL.</li>
+      <li><code>GET https://www.googleapis.com/youtube/v3/channels</code> — requested directly from your browser with <code>part=snippet,statistics</code> for the video's channel ID.</li>
+    </ul>
+
+    <h2>Quota</h2>
+    <p>Because everyone using this file shares the same configured key, the daily quota is shared across all usage, not allocated per person. Heavy use — by you or by anyone else this file was shared with — can exhaust that shared quota, after which analysis will fail for everyone until the quota resets on Google's schedule.</p>
+
+    <h2>No rate limiting</h2>
+    <p>Because this is a single client-side file with no server to enforce limits, there is no rate limiting on requests beyond what your own browser and Google's own API throttling apply. Please be considerate with how often and how widely you use or share this file, since its quota is shared.</p>
+
+    <h2>Failure handling</h2>
+    <p>If the configured key becomes invalid, is not enabled for the YouTube Data API v3, or the quota is exhausted, this interface shows a plain, human-readable message rather than the raw error Google's API returns.</p>
+  </div>
+</main>
+
+<!-- ================= ABOUT ================= -->
+<main class="page" id="page-about">
+  <div class="container doc-page">
+    <h1>About</h1>
+    <p class="updated">What Nirbhay Video Matrix is, and what it isn't</p>
+
+    <h2>What this is</h2>
+    <p>Nirbhay Video Matrix is a focused metadata inspection tool for individual YouTube videos. Paste a URL, and it surfaces exactly what the YouTube Data API v3 returns for that video and its channel — identifiers, publication timing, statistics, and thumbnail assets — with copy and download controls for anything you might want to reuse.</p>
+
+    <h2>Disclaimer</h2>
+    <p>Nirbhay Video Matrix is an independent third-party application and is not affiliated with, sponsored by, or endorsed by YouTube or Google unless explicitly stated otherwise. YouTube and Google are trademarks of their respective owners, referenced here only to describe the API this application consumes.</p>
+
+    <h2>Contact</h2>
+    <p>Questions, feedback, or issue reports can be sent to <a href="mailto:contact.nirbhayexplorer@gmail.com">contact.nirbhayexplorer@gmail.com</a>.</p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Nirbhay Video Matrix</h4>
+        <button data-page="home">Home</button>
+        <button data-page="home" data-scroll="analyzer">Analyzer</button>
+        <button data-page="home" data-scroll="thumbnailDownloader">Thumbnail Downloader</button>
+        <button data-page="channel">Channel Analyzer</button>
+        <button data-page="about">About</button>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <button data-page="documentation">Documentation</button>
+        <button data-page="api-info">API Information</button>
+        <button data-page="limitations">Limitations</button>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <button data-page="terms">Terms &amp; Conditions</button>
+        <button data-page="privacy">Privacy Policy</button>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <a href="mailto:contact.nirbhayexplorer@gmail.com">contact.nirbhayexplorer@gmail.com</a>
+      </div>
+    </div>
+    <div class="footer-note">
+      Independent third-party application. Not affiliated with, endorsed by, or connected to YouTube or Google.
+      <br>© <span id="footerYear"></span> Nirbhay Video Matrix. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<!-- ================= Firebase: Auth + Realtime Sync ================= -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
+<script>
+(function(){
+  // Your web app's Firebase configuration (public — identifies the project,
+  // does not by itself grant access; access is controlled by Firebase Auth
+  // + Firestore Security Rules, see the notes below).
+  var firebaseConfig = {
+    apiKey: "AIzaSyC592VCmRA2r9BXfpmv80oUqc5mqMCqFNY",
+    authDomain: "nirbhay-video-matrix.firebaseapp.com",
+    projectId: "nirbhay-video-matrix",
+    storageBucket: "nirbhay-video-matrix.firebasestorage.app",
+    messagingSenderId: "765653583524",
+    appId: "1:765653583524:web:996504db7a535d10ac8831",
+    measurementId: "G-GWJWF7FC1P"
+  };
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+  var storage = firebase.storage();
+
+  // Emails allowed to post live updates from the Admin page.
+  // Edit this list to add/remove admins — it only hides/shows the Admin UI;
+  // the real enforcement has to live in Firestore Security Rules (see notes).
+  var ADMIN_EMAILS = [
+    'contact.nirbhayexplorer@gmail.com'
+  ];
+
+  var googleSignInBtn = document.getElementById('googleSignInBtn');
+  var authGate = document.getElementById('authGate');
+  var authGateSignInBtn = document.getElementById('authGateSignInBtn');
+  var userChip = document.getElementById('userChip');
+  var userChipBtn = document.getElementById('userChipBtn');
+  var userChipMenu = document.getElementById('userChipMenu');
+  var userChipAvatar = document.getElementById('userChipAvatar');
+  var userChipName = document.getElementById('userChipName');
+  var userChipEmail = document.getElementById('userChipEmail');
+  var signOutBtn = document.getElementById('signOutBtn');
+  var adminNavBtn = document.getElementById('adminNavBtn');
+  var adminPanel = document.getElementById('adminPanel');
+  var adminSignedOutNote = document.getElementById('adminSignedOutNote');
+  var adminNotAuthorizedNote = document.getElementById('adminNotAuthorizedNote');
+
+  function doGoogleSignIn(){
+    var provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(function(err){
+      console.error('Sign-in failed', err);
+    });
+  }
+  googleSignInBtn.addEventListener('click', doGoogleSignIn);
+  authGateSignInBtn.addEventListener('click', doGoogleSignIn);
+
+  userChipBtn.addEventListener('click', function(){
+    userChipMenu.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if(!userChip.contains(e.target)) userChipMenu.classList.remove('open');
+  });
+  signOutBtn.addEventListener('click', function(){
+    auth.signOut();
+    userChipMenu.classList.remove('open');
+  });
+
+  var currentUser = null;
+  var isAdmin = false;
+  var userDocUnsubscribe = null;
+  window.NVM_isPremium = false;
+
+  var authGateTitle = document.getElementById('authGateTitle');
+  var authGateText = document.getElementById('authGateText');
+  var authGateSignInBtn2 = document.getElementById('authGateSignInBtn');
+  var userChipPremiumBadge = document.getElementById('userChipPremiumBadge');
+
+  function showBannedGate(){
+    authGateTitle.textContent = 'Account suspended';
+    authGateText.textContent = 'This Google account has been banned from Nirbhay Video Matrix. If you think this is a mistake, contact contact.nirbhayexplorer@gmail.com.';
+    authGateSignInBtn2.style.display = 'none';
+    authGate.style.display = 'flex';
+    document.body.classList.add('gate-locked');
+  }
+  function resetGateToSignIn(){
+    authGateTitle.textContent = 'Sign in to continue';
+    authGateText.textContent = 'Nirbhay Video Matrix requires a Google sign-in before you can use the analyzer or view its content.';
+    authGateSignInBtn2.style.display = '';
+  }
+
+  auth.onAuthStateChanged(function(user){
+    currentUser = user;
+    if(userDocUnsubscribe){ userDocUnsubscribe(); userDocUnsubscribe = null; }
+
+    if(user){
+      googleSignInBtn.style.display = 'none';
+      userChip.style.display = '';
+      userChipAvatar.src = user.photoURL || '';
+      userChipName.textContent = user.displayName || user.email || 'Account';
+      userChipEmail.textContent = user.email || '';
+      isAdmin = ADMIN_EMAILS.indexOf(user.email) !== -1;
+
+      // Upsert this user's profile — merge:true so it never clobbers
+      // premium/banned flags an admin has already set on this account.
+      // createdAt/premium/banned are only written the first time this
+      // account signs in, so a later sign-in never resets them.
+      db.collection('users').doc(user.uid).get().then(function(existing){
+        var payload = {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || '',
+          photoURL: user.photoURL || '',
+          lastSignIn: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if(!existing.exists){
+          payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+          payload.premium = false;
+          payload.banned = false;
+        }
+        return db.collection('users').doc(user.uid).set(payload, {merge: true});
+      }).catch(function(err){ console.error('User profile sync failed', err); });
+
+      // Live-track this user's own premium/banned flags. If an admin bans
+      // this account while they're using the site, they get kicked out
+      // within a second — same instant-update pattern as the broadcasts.
+      userDocUnsubscribe = db.collection('users').doc(user.uid).onSnapshot(function(docSnap){
+        var data = docSnap.data() || {};
+        if(data.banned){
+          window.NVM_isPremium = false;
+          auth.signOut();
+          showBannedGate();
+          return;
+        }
+        resetGateToSignIn();
+        window.NVM_isPremium = !!data.premium;
+        userChipPremiumBadge.style.display = data.premium ? '' : 'none';
+      }, function(err){ console.error('User doc listener error', err); });
+
+      // Signed in — drop the gate and unlock the page.
+      authGate.style.display = 'none';
+      document.body.classList.remove('gate-locked');
+    } else {
+      googleSignInBtn.style.display = '';
+      userChip.style.display = 'none';
+      userChipMenu.classList.remove('open');
+      isAdmin = false;
+      window.NVM_isPremium = false;
+      // Signed out (or not yet signed in) — the whole app stays behind the gate,
+      // unless we're showing the banned-account message instead.
+      if(authGateTitle.textContent !== 'Account suspended'){
+        resetGateToSignIn();
+        authGate.style.display = 'flex';
+        document.body.classList.add('gate-locked');
+      }
+    }
+    adminNavBtn.style.display = isAdmin ? '' : 'none';
+    adminSignedOutNote.style.display = user ? 'none' : '';
+    adminNotAuthorizedNote.style.display = (user && !isAdmin) ? '' : 'none';
+    adminPanel.style.display = isAdmin ? '' : 'none';
+  });
+
+  // ---------------- Shared: type labels ----------------
+  var TYPE_LABELS = {info:'Live update', success:'Good news', warning:'Warning', urgent:'Urgent'};
+
+  // ---------------- Notification sound + Read Aloud ----------------
+  // Both are plain browser APIs — no Firebase needed for these.
+  var audioCtx = null;
+  function ensureAudioCtx(){
+    if(!audioCtx){
+      try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
+    }
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  // Browsers won't play audio until the user has interacted with the page at
+  // least once — signing in counts, so "warm up" the audio context there.
+  googleSignInBtn.addEventListener('click', ensureAudioCtx);
+  authGateSignInBtn.addEventListener('click', ensureAudioCtx);
+
+  function playTone(ctx, freq, startTime, duration){
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.28, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(startTime); osc.stop(startTime + duration + 0.02);
+  }
+  function playNotificationChime(){
+    var ctx = ensureAudioCtx();
+    if(!ctx) return;
+    var now = ctx.currentTime;
+    playTone(ctx, 880, now, 0.16);        // "ting"
+    playTone(ctx, 587, now + 0.17, 0.24); // "tong"
+  }
+
+  function speakText(text){
+    if(!('speechSynthesis' in window) || !text) return;
+    window.speechSynthesis.cancel();
+    var utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.98;
+    window.speechSynthesis.speak(utter);
+  }
+  function readAloudButtonHtml(){
+    return '<button type="button" class="read-aloud-btn" title="Read aloud" aria-label="Read this update aloud">' +
+      '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 5.2H3.6L6.6 2.6V11.4L3.6 8.8H1.5V5.2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9 4.3C9.9 5.1 9.9 8.9 9 9.7M10.7 2.7C12.4 4.4 12.4 9.6 10.7 11.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>' +
+    '</button>';
+  }
+
+  // ---------------- Realtime broadcast banner ----------------
+  // Any document written to the "broadcasts" collection appears, instantly,
+  // in every open tab of this site — that's what gives the "I update
+  // something and everyone sees it right away" behaviour.
+  var broadcastBanner = document.getElementById('broadcastBanner');
+  var broadcastLabel = document.getElementById('broadcastLabel');
+  var broadcastText = document.getElementById('broadcastText');
+  var broadcastClose = document.getElementById('broadcastClose');
+  var broadcastReadAloudBtn = document.getElementById('broadcastReadAloudBtn');
+  var dismissedBroadcastId = null;
+  var isFirstBroadcastSnapshot = true;
+
+  broadcastClose.addEventListener('click', function(){
+    broadcastBanner.classList.remove('show');
+    if(broadcastBanner.dataset.activeId) dismissedBroadcastId = broadcastBanner.dataset.activeId;
+  });
+  broadcastReadAloudBtn.addEventListener('click', function(){
+    speakText((broadcastLabel.textContent ? broadcastLabel.textContent + '. ' : '') + broadcastText.textContent);
+  });
+
+  var TYPE_ICONS = {
+    info: '<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.2" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.3V7.8M7.5 10.4H7.507" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    success: '<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.2" stroke="currentColor" stroke-width="1.3"/><path d="M4.8 7.6L6.6 9.4L10.4 5.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    warning: '<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 2L13.5 12.5H1.5L7.5 2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7.5 6.5V9M7.5 10.8H7.507" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    urgent: '<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.2" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.3V8.2M7.5 10.4H7.507" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+  };
+  var broadcastIcon = document.getElementById('broadcastIcon');
+
+  db.collection('broadcasts').orderBy('createdAt', 'desc').limit(1)
+    .onSnapshot(function(snap){
+      if(snap.empty){ isFirstBroadcastSnapshot = false; return; }
+      var doc = snap.docs[0];
+      var data = doc.data();
+      var isGenuinelyNew = !isFirstBroadcastSnapshot && doc.id !== broadcastBanner.dataset.activeId;
+      isFirstBroadcastSnapshot = false;
+      if(doc.id === dismissedBroadcastId) return;
+      var type = data.type || 'info';
+      broadcastBanner.dataset.type = type;
+      broadcastIcon.innerHTML = TYPE_ICONS[type] || TYPE_ICONS.info;
+      broadcastLabel.textContent = data.title || TYPE_LABELS[type] || 'Live update';
+      broadcastText.textContent = data.text || '';
+      broadcastBanner.dataset.activeId = doc.id;
+      broadcastBanner.classList.add('show');
+      if(isGenuinelyNew) playNotificationChime();
+    }, function(err){
+      console.error('Broadcast listener error', err);
+    });
+
+  // ---------------- Notifications page (read-only, everyone) ----------------
+  var notificationsList = document.getElementById('notificationsList');
+
+  function renderBroadcastRow(doc, withDelete){
+    var data = doc.data();
+    var type = data.type || 'info';
+    var when = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toLocaleString() : 'Just now';
+    var row = document.createElement('div');
+    row.className = 'admin-list-item';
+    row.dataset.type = type;
+    row.innerHTML =
+      '<span class="al-dot"></span>' +
+      '<div style="flex:1; min-width:0;">' +
+        (data.title ? '<div class="al-title"></div>' : '') +
+        '<div class="al-text"></div><div class="al-meta"></div>' +
+      '</div>' +
+      '<div style="display:flex; gap:6px; align-items:flex-start;">' +
+        readAloudButtonHtml() +
+        (withDelete ? '<button type="button" class="delete-broadcast-btn">Delete</button>' : '') +
+      '</div>';
+    if(data.title) row.querySelector('.al-title').textContent = data.title;
+    row.querySelector('.al-text').textContent = data.text || '';
+    row.querySelector('.al-meta').textContent = when + (data.authorEmail ? ' · ' + data.authorEmail : '');
+    row.querySelector('.read-aloud-btn').addEventListener('click', function(){
+      speakText((data.title ? data.title + '. ' : '') + (data.text || ''));
+    });
+    if(withDelete){
+      row.querySelector('.delete-broadcast-btn').addEventListener('click', function(){
+        db.collection('broadcasts').doc(doc.id).delete();
+      });
+    }
+    return row;
+  }
+
+  db.collection('broadcasts').orderBy('createdAt', 'desc').limit(50)
+    .onSnapshot(function(snap){
+      notificationsList.innerHTML = '';
+      if(snap.empty){
+        notificationsList.innerHTML = '<span class="empty-note">No notifications yet.</span>';
+        return;
+      }
+      snap.forEach(function(doc){
+        notificationsList.appendChild(renderBroadcastRow(doc, false));
+      });
+    }, function(err){
+      console.error('Notifications listener error', err);
+    });
+
+  // ---------------- Admin: post + manage live updates ----------------
+  var broadcastTitleInput = document.getElementById('broadcastTitle');
+  var broadcastInput = document.getElementById('broadcastInput');
+  var postBroadcastBtn = document.getElementById('postBroadcastBtn');
+  var postBroadcastStatus = document.getElementById('postBroadcastStatus');
+  var adminBroadcastList = document.getElementById('adminBroadcastList');
+  var clearAllBroadcastsBtn = document.getElementById('clearAllBroadcastsBtn');
+  var typePills = document.querySelectorAll('.type-pill');
+  var selectedType = 'info';
+
+  typePills.forEach(function(pill){
+    pill.addEventListener('click', function(){
+      typePills.forEach(function(p){ p.classList.remove('active'); });
+      pill.classList.add('active');
+      selectedType = pill.getAttribute('data-type');
+    });
+  });
+
+  postBroadcastBtn.addEventListener('click', function(){
+    var text = broadcastInput.value.trim();
+    var title = broadcastTitleInput.value.trim();
+    if(!text || !currentUser) return;
+    postBroadcastBtn.disabled = true;
+    postBroadcastStatus.textContent = 'Posting…';
+    db.collection('broadcasts').add({
+      text: text,
+      title: title || null,
+      type: selectedType,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      authorEmail: currentUser.email
+    }).then(function(){
+      broadcastInput.value = '';
+      broadcastTitleInput.value = '';
+      postBroadcastStatus.textContent = 'Posted — visible to everyone now.';
+      setTimeout(function(){ postBroadcastStatus.textContent = ''; }, 2500);
+    }).catch(function(err){
+      console.error(err);
+      postBroadcastStatus.textContent = 'Failed to post (check Firestore rules).';
+    }).finally(function(){
+      postBroadcastBtn.disabled = false;
+    });
+  });
+
+  clearAllBroadcastsBtn.addEventListener('click', function(){
+    if(!currentUser || !isAdmin) return;
+    if(!confirm('Delete every posted update? This cannot be undone.')) return;
+    clearAllBroadcastsBtn.disabled = true;
+    db.collection('broadcasts').get().then(function(snap){
+      var batch = db.batch();
+      snap.forEach(function(doc){ batch.delete(doc.ref); });
+      return batch.commit();
+    }).catch(function(err){
+      console.error('Clear all failed', err);
+    }).finally(function(){
+      clearAllBroadcastsBtn.disabled = false;
+    });
+  });
+
+  db.collection('broadcasts').orderBy('createdAt', 'desc').limit(20)
+    .onSnapshot(function(snap){
+      adminBroadcastList.innerHTML = '';
+      if(snap.empty){
+        adminBroadcastList.innerHTML = '<span class="empty-note">No live updates posted yet.</span>';
+        return;
+      }
+      snap.forEach(function(doc){
+        adminBroadcastList.appendChild(renderBroadcastRow(doc, true));
+      });
+    });
+
+  // ---------------- Admin: manage users (Premium / Ban) ----------------
+  var adminUsersList = document.getElementById('adminUsersList');
+
+  db.collection('users').orderBy('lastSignIn', 'desc').limit(200)
+    .onSnapshot(function(snap){
+      if(!adminUsersList) return;
+      adminUsersList.innerHTML = '';
+      if(snap.empty){
+        adminUsersList.innerHTML = '<span class="empty-note">No one has signed in yet.</span>';
+        return;
+      }
+      snap.forEach(function(doc){
+        var data = doc.data();
+        var isSelf = currentUser && doc.id === currentUser.uid;
+        var row = document.createElement('div');
+        row.className = 'user-row';
+        row.innerHTML =
+          '<img src="'+(data.photoURL || '')+'" alt="">' +
+          '<div class="ur-meta">' +
+            '<div class="ur-name"></div>' +
+            '<div class="ur-email"></div>' +
+          '</div>' +
+          '<div class="ur-actions">' +
+            '<button type="button" class="grant-premium-btn"></button>' +
+            '<button type="button" class="ban-btn"></button>' +
+          '</div>';
+
+        var nameEl = row.querySelector('.ur-name');
+        nameEl.textContent = data.displayName || 'Unnamed';
+        if(data.premium){
+          var pb = document.createElement('span');
+          pb.className = 'premium-badge';
+          pb.textContent = 'Premium';
+          nameEl.appendChild(pb);
+        }
+        if(data.banned){
+          var bb = document.createElement('span');
+          bb.className = 'banned-badge';
+          bb.textContent = 'Banned';
+          nameEl.appendChild(bb);
+        }
+        row.querySelector('.ur-email').textContent = data.email || '';
+
+        var premiumBtn = row.querySelector('.grant-premium-btn');
+        premiumBtn.textContent = data.premium ? 'Revoke Premium' : 'Grant Premium';
+        premiumBtn.className += data.premium ? '' : ' grant-premium';
+        premiumBtn.addEventListener('click', function(){
+          db.collection('users').doc(doc.id).set({premium: !data.premium}, {merge: true});
+        });
+
+        var banBtn = row.querySelector('.ban-btn');
+        banBtn.textContent = data.banned ? 'Unban' : 'Ban';
+        if(isSelf){ banBtn.disabled = true; banBtn.title = "You can't ban your own account."; }
+        banBtn.addEventListener('click', function(){
+          if(isSelf) return;
+          if(!data.banned && !confirm('Ban ' + (data.email || 'this user') + '? They will be signed out immediately.')) return;
+          db.collection('users').doc(doc.id).set({banned: !data.banned}, {merge: true});
+        });
+
+        adminUsersList.appendChild(row);
+      });
+    }, function(err){ console.error('Users list error', err); });
+
+  // ---------------- Site controls (Analyzer on/off) ----------------
+  window.NVM_siteConfig = {videoAnalyzerEnabled: true, channelAnalyzerEnabled: true};
+  var toggleVideoAnalyzer = document.getElementById('toggleVideoAnalyzer');
+  var toggleChannelAnalyzer = document.getElementById('toggleChannelAnalyzer');
+  var videoAnalyzerDisabledNote = document.getElementById('videoAnalyzerDisabledNote');
+  var channelAnalyzerDisabledNote = document.getElementById('channelAnalyzerDisabledNote');
+
+  db.collection('config').doc('site').onSnapshot(function(docSnap){
+    var data = docSnap.data() || {};
+    var videoOn = data.videoAnalyzerEnabled !== false;
+    var channelOn = data.channelAnalyzerEnabled !== false;
+    window.NVM_siteConfig = {videoAnalyzerEnabled: videoOn, channelAnalyzerEnabled: channelOn};
+    videoAnalyzerDisabledNote.style.display = videoOn ? 'none' : '';
+    channelAnalyzerDisabledNote.style.display = channelOn ? 'none' : '';
+    toggleVideoAnalyzer.checked = videoOn;
+    toggleChannelAnalyzer.checked = channelOn;
+  }, function(err){ console.error('Site config listener error', err); });
+
+  toggleVideoAnalyzer.addEventListener('change', function(){
+    db.collection('config').doc('site').set({videoAnalyzerEnabled: toggleVideoAnalyzer.checked}, {merge: true});
+  });
+  toggleChannelAnalyzer.addEventListener('change', function(){
+    db.collection('config').doc('site').set({channelAnalyzerEnabled: toggleChannelAnalyzer.checked}, {merge: true});
+  });
+
+  // ---------------- Premium plans & payment ----------------
+  var planEditors = document.querySelectorAll('.pricing-plan-editor');
+  var upiIdInput = document.getElementById('upiIdInput');
+  var qrUploadInput = document.getElementById('qrUploadInput');
+  var qrUploadStatus = document.getElementById('qrUploadStatus');
+  var savePricingBtn = document.getElementById('savePricingBtn');
+  var savePricingStatus = document.getElementById('savePricingStatus');
+  var pendingQrUrl = null;
+
+  db.collection('config').doc('pricing').onSnapshot(function(docSnap){
+    var data = docSnap.data() || {};
+    for(var i = 1; i <= 3; i++){
+      var name = data['plan' + i + 'Name'];
+      var price = data['plan' + i + 'Price'];
+      var desc = data['plan' + i + 'Desc'];
+      if(name) document.getElementById('planName' + i).textContent = name;
+      if(price) document.getElementById('planPrice' + i).textContent = price;
+      if(desc) document.getElementById('planDesc' + i).textContent = desc;
+
+      var editor = document.querySelector('.pricing-plan-editor[data-plan="' + i + '"]');
+      if(editor && document.activeElement && !editor.contains(document.activeElement)){
+        editor.querySelector('[data-field="name"]').value = name || '';
+        editor.querySelector('[data-field="price"]').value = price || '';
+        editor.querySelector('[data-field="desc"]').value = desc || '';
+      }
+    }
+    var upiText = document.getElementById('upiIdText');
+    upiText.textContent = data.upiId || 'Not set yet';
+    if(document.activeElement !== upiIdInput) upiIdInput.value = data.upiId || '';
+
+    var qrImg = document.getElementById('paymentQrImg');
+    var noQrNote = document.getElementById('noQrNote');
+    if(data.qrCodeUrl){
+      qrImg.src = data.qrCodeUrl;
+      qrImg.style.display = '';
+      noQrNote.style.display = 'none';
+    } else {
+      qrImg.style.display = 'none';
+      noQrNote.style.display = '';
+    }
+  }, function(err){ console.error('Pricing listener error', err); });
+
+  qrUploadInput.addEventListener('change', function(){
+    var file = qrUploadInput.files[0];
+    if(!file || !currentUser || !isAdmin) return;
+    qrUploadStatus.textContent = 'Uploading…';
+    var ref = storage.ref().child('payment/qr-code.jpg');
+    ref.put(file).then(function(){
+      return ref.getDownloadURL();
+    }).then(function(url){
+      pendingQrUrl = url;
+      qrUploadStatus.textContent = 'Uploaded — click "Save plans & payment info" to publish it.';
+    }).catch(function(err){
+      console.error('QR upload failed', err);
+      qrUploadStatus.textContent = 'Upload failed (check Firebase Storage rules).';
+    });
+  });
+
+  savePricingBtn.addEventListener('click', function(){
+    if(!currentUser || !isAdmin) return;
+    var payload = {};
+    planEditors.forEach(function(editor){
+      var n = editor.getAttribute('data-plan');
+      payload['plan' + n + 'Name'] = editor.querySelector('[data-field="name"]').value.trim();
+      payload['plan' + n + 'Price'] = editor.querySelector('[data-field="price"]').value.trim();
+      payload['plan' + n + 'Desc'] = editor.querySelector('[data-field="desc"]').value.trim();
+    });
+    payload.upiId = upiIdInput.value.trim();
+    if(pendingQrUrl) payload.qrCodeUrl = pendingQrUrl;
+
+    savePricingBtn.disabled = true;
+    savePricingStatus.textContent = 'Saving…';
+    db.collection('config').doc('pricing').set(payload, {merge: true}).then(function(){
+      savePricingStatus.textContent = 'Saved — live on the Premium page now.';
+      pendingQrUrl = null;
+      setTimeout(function(){ savePricingStatus.textContent = ''; }, 2500);
+    }).catch(function(err){
+      console.error('Save pricing failed', err);
+      savePricingStatus.textContent = 'Failed to save.';
+    }).finally(function(){
+      savePricingBtn.disabled = false;
+    });
+  });
+
+  // ---------------- Notification count badge ----------------
+  var notifCountBadge = document.getElementById('notifCountBadge');
+  db.collection('broadcasts').onSnapshot(function(snap){
+    var count = snap.size;
+    if(count > 0){
+      notifCountBadge.textContent = count > 99 ? '99+' : String(count);
+      notifCountBadge.style.display = '';
+    } else {
+      notifCountBadge.style.display = 'none';
+    }
+  }, function(err){ console.error('Notification count listener error', err); });
+
+})();
+</script>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Theme ---------------- */
+  var THEMES = ['dark','night','day'];
+  var THEME_LABELS = {dark:'Dark', night:'Night', day:'Day'};
+  var themeToggle = document.getElementById('themeToggle');
+  var themeLabel = document.getElementById('themeLabel');
+  var iconEls = {dark:document.getElementById('themeIconDark'), night:document.getElementById('themeIconNight'), day:document.getElementById('themeIconDay')};
+
+  function applyTheme(name){
+    if(name === 'dark') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', name);
+    themeLabel.textContent = THEME_LABELS[name];
+    Object.keys(iconEls).forEach(function(k){ iconEls[k].style.display = (k === name) ? '' : 'none'; });
+    try{ localStorage.setItem('ytva_theme', name); }catch(e){}
+  }
+
+  var storedTheme = 'dark';
+  try{ storedTheme = localStorage.getItem('ytva_theme') || 'dark'; }catch(e){}
+  if(THEMES.indexOf(storedTheme) === -1) storedTheme = 'dark';
+  applyTheme(storedTheme);
+
+  themeToggle.addEventListener('click', function(){
+    var current = document.documentElement.getAttribute('data-theme') || 'dark';
+    var next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length];
+    applyTheme(next);
+  });
+
+  /* ---------------- Navigation ---------------- */
+  var navButtons = document.querySelectorAll('[data-page]');
+  var pages = document.querySelectorAll('.page');
+  var mainNav = document.getElementById('mainNav');
+  var menuToggle = document.getElementById('menuToggle');
+  var navOverlay = document.getElementById('navOverlay');
+  var navClose = document.getElementById('navClose');
+
+  function openNav(){
+    mainNav.classList.add('open');
+    navOverlay.classList.add('show');
+    menuToggle.setAttribute('aria-expanded','true');
+    document.body.classList.add('nav-open');
+  }
+  function closeNav(){
+    mainNav.classList.remove('open');
+    navOverlay.classList.remove('show');
+    menuToggle.setAttribute('aria-expanded','false');
+    document.body.classList.remove('nav-open');
+  }
+
+  function showPage(name){
+    pages.forEach(function(p){ p.classList.toggle('active', p.id === 'page-' + name); });
+    document.querySelectorAll('nav.main-nav button[data-page]').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-page') === name && !b.hasAttribute('data-scroll'));
+    });
+    window.scrollTo({top:0, behavior:'instant' in window ? 'instant' : 'auto'});
+    closeNav();
+  }
+
+  navButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var target = btn.getAttribute('data-page');
+      showPage(target);
+      if(btn.hasAttribute('data-scroll')){
+        setTimeout(function(){
+          var el = document.getElementById(btn.getAttribute('data-scroll'));
+          if(el) el.scrollIntoView({behavior:'smooth'});
+        }, 60);
+      }
+    });
+  });
+
+  menuToggle.addEventListener('click', function(){
+    if(mainNav.classList.contains('open')) closeNav(); else openNav();
+  });
+  navClose.addEventListener('click', closeNav);
+  navOverlay.addEventListener('click', closeNav);
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && mainNav.classList.contains('open')) closeNav();
+  });
+
+  document.getElementById('footerYear').textContent = new Date().getFullYear();
+
+  /* ---------------- URL parsing ---------------- */
+  function extractVideoId(raw){
+    if(!raw) return null;
+    raw = raw.trim();
+    var patterns = [
+      /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
+      /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+      /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+      /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      /^([a-zA-Z0-9_-]{11})$/
+    ];
+    for(var i=0;i<patterns.length;i++){
+      var m = raw.match(patterns[i]);
+      if(m) return m[1];
+    }
+    return null;
+  }
+
+  /* ---------------- Formatting helpers ---------------- */
+  function formatNumber(n){
+    if(n === undefined || n === null) return 'Not available';
+    return Number(n).toLocaleString('en-US');
+  }
+
+  function parseISODuration(iso){
+    if(!iso) return {text:'Not available', totalSeconds:0};
+    var m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if(!m) return {text:'Not available', totalSeconds:0};
+    var h = parseInt(m[1]||0,10), min = parseInt(m[2]||0,10), s = parseInt(m[3]||0,10);
+    var total = h*3600+min*60+s;
+    var parts = [];
+    if(h) parts.push(h+':'+String(min).padStart(2,'0')+':'+String(s).padStart(2,'0'));
+    else parts.push(min+':'+String(s).padStart(2,'0'));
+    return {text: parts[0], totalSeconds: total};
+  }
+
+  function calendarDiff(from, to){
+    // accurate calendar-based breakdown between two Date objects (to > from)
+    var y1=from.getFullYear(), mo1=from.getMonth(), d1=from.getDate();
+    var h1=from.getHours(), mi1=from.getMinutes(), s1=from.getSeconds();
+    var y2=to.getFullYear(), mo2=to.getMonth(), d2=to.getDate();
+    var h2=to.getHours(), mi2=to.getMinutes(), s2=to.getSeconds();
+
+    var seconds = s2 - s1;
+    var minutes = mi2 - mi1;
+    var hours = h2 - h1;
+    var days = d2 - d1;
+    var months = mo2 - mo1;
+    var years = y2 - y1;
+
+    if(seconds < 0){ seconds += 60; minutes--; }
+    if(minutes < 0){ minutes += 60; hours--; }
+    if(hours < 0){ hours += 24; days--; }
+    if(days < 0){
+      var prevMonth = new Date(y2, mo2, 0);
+      days += prevMonth.getDate();
+      months--;
+    }
+    if(months < 0){ months += 12; years--; }
+    return {years:years, months:months, days:days, hours:hours, minutes:minutes, seconds:seconds};
+  }
+
+  var pluralize = function(n, word){ return n + ' ' + word + (n === 1 ? '' : 's'); };
+
+  function ageSentence(diff){
+    var parts = [];
+    if(diff.years) parts.push(pluralize(diff.years,'year'));
+    if(diff.months) parts.push(pluralize(diff.months,'month'));
+    if(diff.days) parts.push(pluralize(diff.days,'day'));
+    if(diff.hours) parts.push(pluralize(diff.hours,'hour'));
+    if(diff.minutes) parts.push(pluralize(diff.minutes,'minute'));
+    parts.push(pluralize(diff.seconds,'second'));
+    if(parts.length > 1){
+      var last = parts.pop();
+      return parts.join(', ') + ' and ' + last;
+    }
+    return parts[0];
+  }
+
+  /* ---------------- Copy system ---------------- */
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.copy-btn');
+    if(!btn) return;
+    var targetId = btn.getAttribute('data-copy-target');
+    if(!targetId) return;
+    var el = document.getElementById(targetId);
+    if(!el) return;
+    var text = el.textContent;
+    navigator.clipboard.writeText(text).then(function(){
+      var original = btn.innerHTML;
+      btn.classList.add('copied');
+      btn.textContent = 'Copied';
+      setTimeout(function(){ btn.classList.remove('copied'); btn.innerHTML = original; }, 1600);
+    }).catch(function(){
+      btn.textContent = 'Unable to copy';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1600);
+    });
+  });
+
+  /* ---------------- Thumbnail download ---------------- */
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-download-url]');
+    if(!btn) return;
+    e.preventDefault();
+    var url = btn.getAttribute('data-download-url');
+    var filename = btn.getAttribute('data-download-filename') || 'thumbnail.jpg';
+    var original = btn.textContent;
+    btn.textContent = 'Downloading…';
+
+    fetch(url)
+      .then(function(res){
+        if(!res.ok) throw new Error('fetch failed');
+        return res.blob();
+      })
+      .then(function(blob){
+        var blobUrl = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 4000);
+        btn.textContent = 'Downloaded';
+        setTimeout(function(){ btn.textContent = original; }, 1800);
+      })
+      .catch(function(){
+        // Some browsers block reading cross-origin image bytes without a
+        // CORS header from the image host. Fall back to opening the full
+        // image so the user can still save it manually (long-press / right-click).
+        window.open(url, '_blank', 'noopener');
+        btn.textContent = 'Opened in new tab';
+        setTimeout(function(){ btn.textContent = original; }, 1800);
+      });
+  });
+
+  document.getElementById('expandDescBtn').addEventListener('click', function(){
+    var box = document.getElementById('descriptionText');
+    var expanded = box.classList.toggle('expanded');
+    this.textContent = expanded ? 'Collapse' : 'Expand';
+  });
+
+  /* ---------------- Analysis flow ---------------- */
+  var form = document.getElementById('analyzeForm');
+  var urlInput = document.getElementById('videoUrl');
+  var validationMsg = document.getElementById('urlValidation');
+  var loadingState = document.getElementById('loadingState');
+  var resultsSection = document.getElementById('results');
+  var errorCard = document.getElementById('errorCard');
+  var analyzeBtn = document.getElementById('analyzeBtn');
+  var liveAgeTimer = null;
+  var currentVideoData = null;
+
+  function setValidation(msg, type){
+    validationMsg.textContent = msg;
+    validationMsg.className = 'validation-msg show ' + (type || 'error');
+  }
+  function clearValidation(){
+    validationMsg.className = 'validation-msg';
+    validationMsg.textContent = '';
+  }
+  function showError(title, body){
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorBody').textContent = body;
+    errorCard.classList.add('show');
+    resultsSection.classList.remove('show');
+    if(liveAgeTimer){ clearInterval(liveAgeTimer); liveAgeTimer = null; }
+  }
+  function hideError(){ errorCard.classList.remove('show'); }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    clearValidation();
+    hideError();
+
+    if(window.NVM_siteConfig && window.NVM_siteConfig.videoAnalyzerEnabled === false){
+      setValidation('The Video Analyzer is temporarily turned off by the admin. Please check back later.', 'error');
+      return;
+    }
+
+    var videoId = extractVideoId(urlInput.value);
+    if(!videoId){
+      setValidation('That does not look like a supported YouTube video URL. Supported formats: youtube.com/watch?v=, youtu.be/, and youtube.com/shorts/.', 'error');
+      return;
+    }
+
+    runAnalysis(urlInput.value.trim());
+  });
+
+  // Configured API key — used directly by this page since it has no server
+  // component. See the Documentation and Privacy pages for what that means.
+  var YOUTUBE_API_KEY = 'AIzaSyAb8ZekWTDb0wik5DV60UKkm9hpr5kWSZo';
+
+  function runAnalysis(rawUrl){
+    analyzeBtn.disabled = true;
+    loadingState.classList.add('show');
+    resultsSection.classList.remove('show');
+    hideError();
+    if(liveAgeTimer){ clearInterval(liveAgeTimer); liveAgeTimer = null; }
+
+    var videoId = extractVideoId(rawUrl);
+    var videoUrl = 'https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics,status&id=' + encodeURIComponent(videoId) + '&key=' + YOUTUBE_API_KEY;
+
+    fetch(videoUrl)
+      .then(function(res){
+        return res.json().then(function(data){ return {ok: res.ok, status: res.status, data: data}; });
+      })
+      .then(function(result){
+        if(!result.ok || result.data.error){
+          handleApiError(result);
+          return;
+        }
+        var items = result.data.items;
+        if(!items || items.length === 0){
+          showError('Video not found', 'No video was found for this ID. It may have been deleted, made private, or the URL may be incorrect.');
+          return;
+        }
+        var video = items[0];
+        var channelUrl = 'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=' + encodeURIComponent(video.snippet.channelId) + '&key=' + YOUTUBE_API_KEY;
+
+        fetch(channelUrl)
+          .then(function(res2){
+            return res2.json().then(function(data2){ return {ok: res2.ok, data: data2}; });
+          })
+          .then(function(chResult){
+            var channel = (chResult.ok && chResult.data.items && chResult.data.items[0]) ? chResult.data.items[0] : null;
+            renderResults(video, channel);
+          })
+          .catch(function(){ renderResults(video, null); });
+      })
+      .catch(function(){
+        showError('Network error', 'The request to the YouTube Data API could not be completed. Check your internet connection and try again.');
+      })
+      .finally(function(){
+        analyzeBtn.disabled = false;
+        loadingState.classList.remove('show');
+      });
+  }
+
+  function handleApiError(result){
+    var reason = result.data && result.data.error && result.data.error.errors && result.data.error.errors[0] && result.data.error.errors[0].reason;
+    var status = result.status;
+    if(status === 403 && reason === 'quotaExceeded'){
+      showError('API quota exceeded', 'This application has exhausted its daily YouTube Data API quota. Please try again after the quota resets.');
+    } else if(status === 400 || (status === 403 && reason === 'keyInvalid')){
+      showError('Configuration issue', 'The YouTube Data API rejected the request. Please contact the application operator.');
+    } else if(status === 404){
+      showError('Video not found', 'No video was found for this ID. It may have been deleted or made private.');
+    } else {
+      showError('API error', 'The YouTube Data API returned an error and the video could not be analyzed. Please try again.');
+    }
+  }
+
+  function pickThumb(thumbnails, key){
+    return thumbnails && thumbnails[key] ? thumbnails[key] : null;
+  }
+
+  function renderResults(video, channel){
+    currentVideoData = {video:video, channel:channel};
+    var snippet = video.snippet, stats = video.statistics || {}, content = video.contentDetails || {}, status = video.status || {};
+
+    document.getElementById('videoTitle').textContent = snippet.title || 'Untitled';
+    document.getElementById('fieldVideoId').textContent = video.id;
+    document.getElementById('fieldChannelId').textContent = snippet.channelId;
+    document.getElementById('fieldCategory').textContent = snippet.categoryId ? ('Category ID ' + snippet.categoryId) : 'Not available';
+    document.getElementById('fieldPrivacy').textContent = status.privacyStatus ? (status.privacyStatus.charAt(0).toUpperCase()+status.privacyStatus.slice(1)) : 'Not available';
+    document.getElementById('descriptionText').textContent = snippet.description || 'No description was returned by the API.';
+    document.getElementById('descriptionText').classList.remove('expanded');
+    document.getElementById('expandDescBtn').textContent = 'Expand';
+
+    var thumbs = snippet.thumbnails || {};
+    var best = pickThumb(thumbs,'maxres') || pickThumb(thumbs,'standard') || pickThumb(thumbs,'high') || pickThumb(thumbs,'medium') || pickThumb(thumbs,'default');
+    document.getElementById('mainThumb').src = best ? best.url : '';
+    document.getElementById('mainThumb').alt = snippet.title || '';
+
+    var durationInfo = parseISODuration(content.duration);
+    document.getElementById('durationBadge').textContent = durationInfo.text;
+    document.getElementById('isoDuration').textContent = content.duration || 'Not available';
+
+    var tagsWrap = document.getElementById('tagsWrap');
+    var tagsRaw = document.getElementById('tagsRaw');
+    var copyTagsBtn = document.getElementById('copyTagsBtn');
+    tagsWrap.innerHTML = '';
+    if(snippet.tags && snippet.tags.length){
+      snippet.tags.forEach(function(t){
+        var chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = t;
+        tagsWrap.appendChild(chip);
+      });
+      tagsRaw.textContent = snippet.tags.join(', ');
+      copyTagsBtn.style.display = '';
+    } else {
+      var note = document.createElement('span');
+      note.className = 'empty-note';
+      note.textContent = 'No tags were returned by the API.';
+      tagsWrap.appendChild(note);
+      tagsRaw.textContent = '';
+      copyTagsBtn.style.display = 'none';
+    }
+
+    // stats
+    var statGrid = document.getElementById('statGrid');
+    var statDefs = [
+      {label:'Views', value: stats.viewCount},
+      {label:'Likes', value: stats.likeCount},
+      {label:'Comments', value: stats.commentCount},
+      {label:'Duration', value: durationInfo.text, raw:true}
+    ];
+    statGrid.innerHTML = '';
+    statDefs.forEach(function(s){
+      var box = document.createElement('div');
+      box.className = 'stat-box';
+      var num = document.createElement('div');
+      num.className = 'num';
+      num.textContent = s.raw ? s.value : (s.value !== undefined ? formatNumber(s.value) : 'Not available');
+      var lbl = document.createElement('div');
+      lbl.className = 'lbl';
+      lbl.textContent = s.label;
+      box.appendChild(num); box.appendChild(lbl);
+      statGrid.appendChild(box);
+    });
+
+    // channel column
+    var chThumb = channel ? pickThumb(channel.snippet.thumbnails,'high') || pickThumb(channel.snippet.thumbnails,'default') : null;
+    document.getElementById('channelThumbSmall').src = chThumb ? chThumb.url : (best ? best.url : '');
+    document.getElementById('channelThumbLarge').src = chThumb ? chThumb.url : (best ? best.url : '');
+    document.getElementById('channelNameLine').textContent = snippet.channelTitle || 'Unknown channel';
+    document.getElementById('channelNameLarge').textContent = snippet.channelTitle || 'Unknown channel';
+    document.getElementById('channelUrlLink').href = 'https://www.youtube.com/channel/' + snippet.channelId;
+    document.getElementById('chFieldId').textContent = snippet.channelId;
+    document.getElementById('chDescription').textContent = channel && channel.snippet.description ? channel.snippet.description : 'Not available';
+
+    if(channel && channel.statistics){
+      document.getElementById('chSubs').textContent = channel.statistics.hiddenSubscriberCount ? 'Hidden by channel' : formatNumber(channel.statistics.subscriberCount);
+      document.getElementById('chVideos').textContent = formatNumber(channel.statistics.videoCount);
+      document.getElementById('chViews').textContent = formatNumber(channel.statistics.viewCount);
+    } else {
+      document.getElementById('chSubs').textContent = 'Not available';
+      document.getElementById('chVideos').textContent = 'Not available';
+      document.getElementById('chViews').textContent = 'Not available';
+    }
+
+    // published date/time — dynamic, local timezone
+    var published = new Date(snippet.publishedAt);
+    var dateFmt = new Intl.DateTimeFormat(undefined, {day:'2-digit', month:'long', year:'numeric'});
+    var timeFmt = new Intl.DateTimeFormat(undefined, {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true});
+    var weekdayFmt = new Intl.DateTimeFormat(undefined, {weekday:'long'});
+    document.getElementById('pubDate').textContent = dateFmt.format(published);
+    document.getElementById('pubTime').textContent = timeFmt.format(published);
+    document.getElementById('pubWeekday').textContent = weekdayFmt.format(published);
+    document.getElementById('isoTimestamp').textContent = snippet.publishedAt;
+
+    // thumbnails section
+    var thumbGrid = document.getElementById('thumbGrid');
+    thumbGrid.innerHTML = '';
+    var thumbOrder = [
+      {key:'maxres', name:'Maximum Resolution'},
+      {key:'standard', name:'Standard'},
+      {key:'high', name:'High Quality'},
+      {key:'medium', name:'Medium Quality'},
+      {key:'default', name:'Default'}
+    ];
+    thumbOrder.forEach(function(t, idx){
+      var th = thumbs[t.key];
+      if(!th) return;
+      var card = document.createElement('div');
+      card.className = 'thumb-row';
+      var urlId = 'thumbUrl_' + idx;
+      var filename = 'Nirbhay-Video-Matrix-' + video.id + '-' + t.key + '.jpg';
+      card.innerHTML =
+        '<div class="thumb-row-icon">' +
+          '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="1.6" stroke="currentColor" stroke-width="1.3"/><circle cx="6.2" cy="7" r="1.1" fill="currentColor"/><path d="M2.8 12.5L6.5 9L9 11L12 8L15.2 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '</div>' +
+        '<div class="thumb-row-meta">' +
+          '<div class="res-name">'+t.name+'</div>' +
+          '<div class="res-dim">'+th.width+' × '+th.height+'</div>' +
+          '<span class="sr-only" id="'+urlId+'">'+th.url+'</span>' +
+        '</div>' +
+        '<div class="thumb-actions">' +
+          '<a class="copy-btn" href="'+th.url+'" target="_blank" rel="noopener">Open</a>' +
+          '<button class="copy-btn" data-download-url="'+th.url+'" data-download-filename="'+filename+'">Download</button>' +
+          '<button class="copy-btn" data-copy-target="'+urlId+'" data-copy-label="thumbnail URL">Copy URL</button>' +
+        '</div>';
+      thumbGrid.appendChild(card);
+    });
+    if(!thumbGrid.children.length){
+      thumbGrid.innerHTML = '<span class="empty-note">No thumbnails were returned by the API.</span>';
+    }
+
+    // technical JSON viewer
+    var jsonViewer = document.getElementById('jsonViewer');
+    var jsonPayload = {video: video, channel: channel};
+    jsonViewer.textContent = JSON.stringify(jsonPayload, null, 2);
+    document.getElementById('copyJsonBtn').onclick = function(){
+      navigator.clipboard.writeText(JSON.stringify(jsonPayload, null, 2)).then(function(){
+        var b = document.getElementById('copyJsonBtn');
+        var orig = b.textContent;
+        b.classList.add('copied'); b.textContent = 'Copied';
+        setTimeout(function(){ b.classList.remove('copied'); b.textContent = orig; }, 1600);
+      });
+    };
+
+    // live age counter
+    function updateAge(){
+      var now = new Date();
+      var diff = calendarDiff(published, now);
+      document.getElementById('ageSentence').innerHTML = 'Published <strong>' + ageSentence(diff) + '</strong> ago.';
+      var breakdown = document.getElementById('ageBreakdown');
+      breakdown.innerHTML = '';
+      [['years',diff.years],['months',diff.months],['days',diff.days],['hours',diff.hours],['minutes',diff.minutes],['seconds',diff.seconds]].forEach(function(pair){
+        var unit = document.createElement('div');
+        unit.className = 'age-unit';
+        unit.innerHTML = '<div class="val">'+pair[1]+'</div><div class="unit">'+pair[0]+'</div>';
+        breakdown.appendChild(unit);
+      });
+    }
+    updateAge();
+    liveAgeTimer = setInterval(updateAge, 1000);
+
+    resultsSection.classList.add('show');
+    setTimeout(function(){ resultsSection.scrollIntoView({behavior:'smooth', block:'start'}); }, 60);
+  }
+
+  /* ================= Channel Analyzer ================= */
+
+  var channelForm = document.getElementById('channelForm');
+  var channelQueryInput = document.getElementById('channelQuery');
+  var channelValidationMsg = document.getElementById('channelValidation');
+  var channelLoadingState = document.getElementById('channelLoadingState');
+  var channelResultsSection = document.getElementById('channelResults');
+  var channelErrorCard = document.getElementById('channelErrorCard');
+  var analyzeChannelBtn = document.getElementById('analyzeChannelBtn');
+  var loadMoreVideosBtn = document.getElementById('loadMoreVideosBtn');
+  var liveChannelAgeTimer = null;
+  var currentUploadsPlaylistId = null;
+  var nextVideosPageToken = null;
+
+  function setChannelValidation(msg){
+    channelValidationMsg.textContent = msg;
+    channelValidationMsg.className = 'validation-msg show error';
+  }
+  function clearChannelValidation(){
+    channelValidationMsg.className = 'validation-msg';
+    channelValidationMsg.textContent = '';
+  }
+  function showChannelError(title, body){
+    document.getElementById('channelErrorTitle').textContent = title;
+    document.getElementById('channelErrorBody').textContent = body;
+    channelErrorCard.classList.add('show');
+    channelResultsSection.classList.remove('show');
+    if(liveChannelAgeTimer){ clearInterval(liveChannelAgeTimer); liveChannelAgeTimer = null; }
+  }
+  function hideChannelError(){ channelErrorCard.classList.remove('show'); }
+
+  // Classify what the user pasted so we hit the cheapest matching API param.
+  function parseChannelQuery(raw){
+    if(!raw) return null;
+    var v = raw.trim();
+
+    var idMatch = v.match(/(?:youtube\.com\/channel\/)(UC[a-zA-Z0-9_-]{22})/) || v.match(/^(UC[a-zA-Z0-9_-]{22})$/);
+    if(idMatch) return {type:'id', value: idMatch[1]};
+
+    var handleMatch = v.match(/youtube\.com\/@([a-zA-Z0-9._-]+)/) || v.match(/^@([a-zA-Z0-9._-]+)$/);
+    if(handleMatch) return {type:'handle', value: handleMatch[1]};
+
+    var userMatch = v.match(/youtube\.com\/(?:c|user)\/([a-zA-Z0-9._-]+)/);
+    if(userMatch) return {type:'username', value: userMatch[1]};
+
+    // Bare word with no spaces and no obvious YouTube pattern — try it as a handle first
+    // (cheap), since many people type a handle without the @ sign.
+    if(/^[a-zA-Z0-9._-]+$/.test(v) && !v.includes('youtube.com') && !v.includes('youtu.be')){
+      return {type:'handle', value: v};
+    }
+
+    return {type:'search', value: v};
+  }
+
+  function fetchChannelResource(query){
+    var base = 'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails,brandingSettings&key=' + YOUTUBE_API_KEY;
+    var url;
+    if(query.type === 'id') url = base + '&id=' + encodeURIComponent(query.value);
+    else if(query.type === 'handle') url = base + '&forHandle=' + encodeURIComponent('@' + query.value.replace(/^@/, ''));
+    else if(query.type === 'username') url = base + '&forUsername=' + encodeURIComponent(query.value);
+    else return Promise.resolve(null); // 'search' type is resolved separately
+
+    return fetch(url).then(function(res){ return res.json().then(function(data){ return {ok:res.ok, status:res.status, data:data}; }); });
+  }
+
+  function searchForChannelId(term){
+    var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=1&q=' + encodeURIComponent(term) + '&key=' + YOUTUBE_API_KEY;
+    return fetch(url).then(function(res){ return res.json().then(function(data){ return {ok:res.ok, status:res.status, data:data}; }); });
+  }
+
+  channelForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    clearChannelValidation();
+    hideChannelError();
+
+    if(window.NVM_siteConfig && window.NVM_siteConfig.channelAnalyzerEnabled === false){
+      setChannelValidation('The Channel Analyzer is temporarily turned off by the admin. Please check back later.');
+      return;
+    }
+
+    var raw = channelQueryInput.value.trim();
+    if(!raw){
+      setChannelValidation('Paste a channel handle, URL, or ID first.');
+      return;
+    }
+    runChannelAnalysis(raw);
+  });
+
+  function runChannelAnalysis(raw){
+    analyzeChannelBtn.disabled = true;
+    channelLoadingState.classList.add('show');
+    channelResultsSection.classList.remove('show');
+    hideChannelError();
+    if(liveChannelAgeTimer){ clearInterval(liveChannelAgeTimer); liveChannelAgeTimer = null; }
+
+    var query = parseChannelQuery(raw);
+
+    function finish(){
+      analyzeChannelBtn.disabled = false;
+      channelLoadingState.classList.remove('show');
+    }
+
+    function handleChannelResult(result){
+      if(!result || !result.ok || result.data.error){
+        handleChannelApiError(result);
+        finish();
+        return;
+      }
+      var items = result.data.items;
+      if(!items || items.length === 0){
+        showChannelError('Channel not found', 'No channel was found for this handle, URL, or ID.');
+        finish();
+        return;
+      }
+      renderChannelResults(items[0]);
+      finish();
+    }
+
+    if(query.type === 'search'){
+      searchForChannelId(query.value).then(function(searchResult){
+        if(!searchResult.ok || searchResult.data.error || !searchResult.data.items || !searchResult.data.items.length){
+          handleChannelApiError(searchResult, true);
+          finish();
+          return;
+        }
+        var channelId = searchResult.data.items[0].snippet.channelId || (searchResult.data.items[0].id && searchResult.data.items[0].id.channelId);
+        fetchChannelResource({type:'id', value: channelId}).then(handleChannelResult).catch(function(){
+          showChannelError('Network error', 'The request to the YouTube Data API could not be completed. Check your internet connection and try again.');
+          finish();
+        });
+      }).catch(function(){
+        showChannelError('Network error', 'The request to the YouTube Data API could not be completed. Check your internet connection and try again.');
+        finish();
+      });
+      return;
+    }
+
+    fetchChannelResource(query).then(function(result){
+      // If a handle/username lookup comes back empty, it may just be a name
+      // rather than an actual handle — fall back to search once.
+      if(result.ok && (!result.data.items || result.data.items.length === 0) && query.type !== 'id'){
+        searchForChannelId(query.value).then(function(searchResult){
+          if(!searchResult.ok || searchResult.data.error || !searchResult.data.items || !searchResult.data.items.length){
+            showChannelError('Channel not found', 'No channel was found for this handle, URL, or ID.');
+            finish();
+            return;
+          }
+          var channelId = searchResult.data.items[0].snippet.channelId || (searchResult.data.items[0].id && searchResult.data.items[0].id.channelId);
+          fetchChannelResource({type:'id', value: channelId}).then(handleChannelResult).catch(function(){
+            showChannelError('Network error', 'The request to the YouTube Data API could not be completed. Check your internet connection and try again.');
+            finish();
+          });
+        }).catch(function(){
+          showChannelError('Network error', 'The request to the YouTube Data API could not be completed. Check your internet connection and try again.');
+          finish();
+        });
+        return;
+      }
+      handleChannelResult(result);
+    }).catch(function(){
+      showChannelError('Network error', 'The request to the YouTube Data API could not be completed. Check your internet connection and try again.');
+      finish();
+    });
+  }
+
+  function handleChannelApiError(result, isSearch){
+    var reason = result && result.data && result.data.error && result.data.error.errors && result.data.error.errors[0] && result.data.error.errors[0].reason;
+    var status = result && result.status;
+    if(status === 403 && reason === 'quotaExceeded'){
+      showChannelError('API quota exceeded', 'This application has exhausted its daily YouTube Data API quota. Please try again after the quota resets.');
+    } else if(status === 400 || (status === 403 && reason === 'keyInvalid')){
+      showChannelError('Configuration issue', 'The YouTube Data API rejected the request. Please contact the application operator.');
+    } else if(isSearch){
+      showChannelError('Channel not found', 'No channel was found matching that name.');
+    } else {
+      showChannelError('API error', 'The YouTube Data API returned an error and the channel could not be analyzed. Please try again.');
+    }
+  }
+
+  function renderChannelResults(channel){
+    var snippet = channel.snippet, stats = channel.statistics || {}, content = channel.contentDetails || {};
+
+    var avatar = pickThumb(snippet.thumbnails, 'high') || pickThumb(snippet.thumbnails, 'medium') || pickThumb(snippet.thumbnails, 'default');
+    document.getElementById('chHeroAvatar').src = avatar ? avatar.url : '';
+    document.getElementById('chHeroAvatar').alt = snippet.title || '';
+    document.getElementById('chHeroName').textContent = snippet.title || 'Unknown channel';
+
+    var handleText = snippet.customUrl ? (snippet.customUrl.indexOf('@') === 0 ? snippet.customUrl : '@' + snippet.customUrl) : '';
+    var channelUrl = 'https://www.youtube.com/channel/' + channel.id;
+    var handleEl = document.getElementById('chHeroHandle');
+    handleEl.textContent = handleText || channelUrl;
+    handleEl.href = channelUrl;
+
+    document.getElementById('chHeroId').textContent = channel.id;
+    document.getElementById('chHeroUrlText').textContent = channelUrl;
+
+    document.getElementById('chStatSubs').textContent = stats.hiddenSubscriberCount ? 'Hidden by channel' : formatNumber(stats.subscriberCount);
+    document.getElementById('chStatVideos').textContent = formatNumber(stats.videoCount);
+    document.getElementById('chStatViews').textContent = formatNumber(stats.viewCount);
+
+    var createdDate = new Date(snippet.publishedAt);
+    var yearsActive = ((new Date()) - createdDate) / (1000 * 60 * 60 * 24 * 365.25);
+    document.getElementById('chStatCreated').textContent = yearsActive >= 0 ? Math.floor(yearsActive) : 'Not available';
+
+    document.getElementById('chAboutText').textContent = snippet.description || 'No description was returned by the API.';
+    document.getElementById('chAboutText').classList.remove('expanded');
+    document.getElementById('expandAboutBtn').textContent = 'Expand';
+
+    // Channel-level keywords/tags — set by the channel owner in YouTube Studio
+    // branding settings; not the same thing as a single video's tags.
+    var chTagsWrap = document.getElementById('chTagsWrap');
+    var chTagsRaw = document.getElementById('chTagsRaw');
+    var chCopyTagsBtn = document.getElementById('chCopyTagsBtn');
+    chTagsWrap.innerHTML = '';
+    var rawKeywords = channel.brandingSettings && channel.brandingSettings.channel && channel.brandingSettings.channel.keywords;
+    var channelTagList = [];
+    if(rawKeywords){
+      // YouTube stores these as one space-separated string, with quoted
+      // phrases for multi-word tags — split that out properly.
+      var matches = rawKeywords.match(/"[^"]+"|\S+/g) || [];
+      channelTagList = matches.map(function(t){ return t.replace(/^"|"$/g, '').trim(); }).filter(Boolean);
+    }
+    if(channelTagList.length){
+      channelTagList.forEach(function(t){
+        var chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = t;
+        chTagsWrap.appendChild(chip);
+      });
+      chTagsRaw.textContent = channelTagList.join(', ');
+      chCopyTagsBtn.style.display = '';
+    } else {
+      var chNote = document.createElement('span');
+      chNote.className = 'empty-note';
+      chNote.textContent = 'No channel tags were returned by the API.';
+      chTagsWrap.appendChild(chNote);
+      chTagsRaw.textContent = '';
+      chCopyTagsBtn.style.display = 'none';
+    }
+
+    var dateFmt = new Intl.DateTimeFormat(undefined, {day:'2-digit', month:'long', year:'numeric'});
+    var timeFmt = new Intl.DateTimeFormat(undefined, {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true});
+    var weekdayFmt = new Intl.DateTimeFormat(undefined, {weekday:'long'});
+    document.getElementById('chPubDate').textContent = dateFmt.format(createdDate);
+    document.getElementById('chPubTime').textContent = timeFmt.format(createdDate);
+    document.getElementById('chPubWeekday').textContent = weekdayFmt.format(createdDate);
+    document.getElementById('chIsoTimestamp').textContent = snippet.publishedAt;
+
+    var chJsonViewer = document.getElementById('chJsonViewer');
+    chJsonViewer.textContent = JSON.stringify(channel, null, 2);
+    document.getElementById('chCopyJsonBtn').onclick = function(){
+      navigator.clipboard.writeText(JSON.stringify(channel, null, 2)).then(function(){
+        var b = document.getElementById('chCopyJsonBtn');
+        var orig = b.textContent;
+        b.classList.add('copied'); b.textContent = 'Copied';
+        setTimeout(function(){ b.classList.remove('copied'); b.textContent = orig; }, 1600);
+      });
+    };
+
+    function updateChannelAge(){
+      var now = new Date();
+      var diff = calendarDiff(createdDate, now);
+      document.getElementById('chAgeSentence').innerHTML = 'Channel created <strong>' + ageSentence(diff) + '</strong> ago.';
+      var breakdown = document.getElementById('chAgeBreakdown');
+      breakdown.innerHTML = '';
+      [['years',diff.years],['months',diff.months],['days',diff.days],['hours',diff.hours],['minutes',diff.minutes],['seconds',diff.seconds]].forEach(function(pair){
+        var unit = document.createElement('div');
+        unit.className = 'age-unit';
+        unit.innerHTML = '<div class="val">'+pair[1]+'</div><div class="unit">'+pair[0]+'</div>';
+        breakdown.appendChild(unit);
+      });
+    }
+    updateChannelAge();
+    liveChannelAgeTimer = setInterval(updateChannelAge, 1000);
+
+    // Uploads list — reset and load the first page.
+    var videoListEl = document.getElementById('channelVideoList');
+    videoListEl.innerHTML = '';
+    currentUploadsPlaylistId = content.relatedPlaylists && content.relatedPlaylists.uploads;
+    nextVideosPageToken = null;
+    loadMoreVideosBtn.style.display = 'none';
+
+    if(currentUploadsPlaylistId){
+      loadChannelVideos(currentUploadsPlaylistId, null);
+    } else {
+      videoListEl.innerHTML = '<span class="empty-note">This channel\'s upload list is not available through the API.</span>';
+    }
+
+    channelResultsSection.classList.add('show');
+    setTimeout(function(){ channelResultsSection.scrollIntoView({behavior:'smooth', block:'start'}); }, 60);
+  }
+
+  function loadChannelVideos(playlistId, pageToken){
+    var videoListEl = document.getElementById('channelVideoList');
+    loadMoreVideosBtn.disabled = true;
+    loadMoreVideosBtn.textContent = 'Loading…';
+
+    var url = 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=12&playlistId=' + encodeURIComponent(playlistId) + '&key=' + YOUTUBE_API_KEY;
+    if(pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
+
+    fetch(url).then(function(res){
+      return res.json().then(function(data){ return {ok:res.ok, status:res.status, data:data}; });
+    }).then(function(result){
+      if(!result.ok || result.data.error){
+        if(!pageToken) videoListEl.innerHTML = '<span class="empty-note">The video list could not be loaded.</span>';
+        loadMoreVideosBtn.style.display = 'none';
+        return;
+      }
+      var items = result.data.items || [];
+      if(items.length === 0 && !pageToken){
+        videoListEl.innerHTML = '<span class="empty-note">This channel has no public uploads.</span>';
+      }
+      items.forEach(function(item){
+        var vs = item.snippet;
+        var videoId = item.contentDetails && item.contentDetails.videoId;
+        if(!videoId) return;
+        var thumb = pickThumb(vs.thumbnails, 'medium') || pickThumb(vs.thumbnails, 'default') || pickThumb(vs.thumbnails, 'high');
+        var watchUrl = 'https://www.youtube.com/watch?v=' + videoId;
+        var publishedShort = vs.publishedAt ? new Intl.DateTimeFormat(undefined, {day:'2-digit', month:'short', year:'numeric'}).format(new Date(vs.publishedAt)) : '';
+        var row = document.createElement('div');
+        row.className = 'video-list-item';
+        var urlSpanId = 'vidUrl_' + videoId;
+        row.innerHTML =
+          '<div class="video-list-thumb"><img src="'+(thumb ? thumb.url : '')+'" alt="" loading="lazy"></div>' +
+          '<div class="video-list-meta">' +
+            '<div class="vtitle">'+(vs.title || 'Untitled')+'</div>' +
+            '<div class="vdate">'+publishedShort+'</div>' +
+            '<span class="sr-only" id="'+urlSpanId+'">'+watchUrl+'</span>' +
+            '<div class="video-list-actions">' +
+              '<a class="copy-btn" href="'+watchUrl+'" target="_blank" rel="noopener">Open</a>' +
+              '<button class="copy-btn" data-copy-target="'+urlSpanId+'" data-copy-label="video link">Copy Link</button>' +
+              '<button class="copy-btn analyze-btn" data-analyze-url="'+watchUrl+'">Analyze</button>' +
+            '</div>' +
+          '</div>';
+        videoListEl.appendChild(row);
+      });
+
+      nextVideosPageToken = result.data.nextPageToken || null;
+      loadMoreVideosBtn.style.display = nextVideosPageToken ? '' : 'none';
+    }).catch(function(){
+      loadMoreVideosBtn.style.display = 'none';
+    }).finally(function(){
+      loadMoreVideosBtn.disabled = false;
+      loadMoreVideosBtn.textContent = 'Load more videos';
+    });
+  }
+
+  loadMoreVideosBtn.addEventListener('click', function(){
+    if(currentUploadsPlaylistId && nextVideosPageToken){
+      loadChannelVideos(currentUploadsPlaylistId, nextVideosPageToken);
+    }
+  });
+
+  document.getElementById('expandAboutBtn').addEventListener('click', function(){
+    var box = document.getElementById('chAboutText');
+    var expanded = box.classList.toggle('expanded');
+    this.textContent = expanded ? 'Collapse' : 'Expand';
+  });
+
+  // "Analyze" on a channel's video item — jump to the Video Analyzer,
+  // fill in the link, and run the analysis immediately.
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-analyze-url]');
+    if(!btn) return;
+    var watchUrl = btn.getAttribute('data-analyze-url');
+    showPage('home');
+    urlInput.value = watchUrl;
+    setTimeout(function(){
+      document.getElementById('analyzer').scrollIntoView({behavior:'smooth'});
+      runAnalysis(watchUrl);
+    }, 60);
+  });
+
+})();
+</script>
+</body>
+</html>
